@@ -24,9 +24,11 @@ import org.vitrivr.cineast.api.messages.result.QueryEnd;
 import org.vitrivr.cineast.api.messages.result.QueryError;
 import org.vitrivr.cineast.api.messages.result.QueryStart;
 import org.vitrivr.cineast.api.messages.result.SimilarityQueryResult;
+import org.vitrivr.cineast.api.messages.result.TemporalQueryResult;
 import org.vitrivr.cineast.api.websocket.handlers.abstracts.StatelessWebsocketMessageHandler;
 import org.vitrivr.cineast.core.config.QueryConfig;
 import org.vitrivr.cineast.core.data.StringDoublePair;
+import org.vitrivr.cineast.core.data.TemporalObject;
 import org.vitrivr.cineast.core.data.entities.MediaObjectDescriptor;
 import org.vitrivr.cineast.core.data.entities.MediaObjectMetadataDescriptor;
 import org.vitrivr.cineast.core.data.entities.MediaSegmentDescriptor;
@@ -44,29 +46,36 @@ import org.vitrivr.cineast.standalone.config.ConstrainedQueryConfig;
  * @version 1.0
  * @created 27.04.17
  */
-public abstract class AbstractQueryMessageHandler<T extends Query> extends StatelessWebsocketMessageHandler<T> {
+public abstract class AbstractQueryMessageHandler<T extends Query> extends
+    StatelessWebsocketMessageHandler<T> {
 
   private static final Logger LOGGER = LogManager.getLogger();
 
   /**
    * {@link MediaSegmentReader} instance used to read segments from the storage layer.
    */
-  protected final MediaSegmentReader mediaSegmentReader = new MediaSegmentReader(Config.sharedConfig().getDatabase().getSelectorSupplier().get());
+  protected final MediaSegmentReader mediaSegmentReader = new MediaSegmentReader(
+      Config.sharedConfig().getDatabase().getSelectorSupplier().get());
 
   /**
    * {@link MediaObjectReader} instance used to read multimedia objects from the storage layer.
    */
-  private final MediaObjectReader mediaObjectReader = new MediaObjectReader(Config.sharedConfig().getDatabase().getSelectorSupplier().get());
+  private final MediaObjectReader mediaObjectReader = new MediaObjectReader(
+      Config.sharedConfig().getDatabase().getSelectorSupplier().get());
 
   /**
-   * {@link MediaSegmentMetadataReader} instance used to read {@link MediaSegmentMetadataDescriptor}s from the storage layer.
+   * {@link MediaSegmentMetadataReader} instance used to read {@link MediaSegmentMetadataDescriptor}s
+   * from the storage layer.
    */
-  private final MediaSegmentMetadataReader segmentMetadataReader = new MediaSegmentMetadataReader(Config.sharedConfig().getDatabase().getSelectorSupplier().get());
+  private final MediaSegmentMetadataReader segmentMetadataReader = new MediaSegmentMetadataReader(
+      Config.sharedConfig().getDatabase().getSelectorSupplier().get());
 
   /**
-   * {@link MediaObjectMetadataReader} instance used to read {@link MediaObjectMetadataReader}s from the storage layer.
+   * {@link MediaObjectMetadataReader} instance used to read {@link MediaObjectMetadataReader}s from
+   * the storage layer.
    */
-  private final MediaObjectMetadataReader objectMetadataReader = new MediaObjectMetadataReader(Config.sharedConfig().getDatabase().getSelectorSupplier().get());
+  private final MediaObjectMetadataReader objectMetadataReader = new MediaObjectMetadataReader(
+      Config.sharedConfig().getDatabase().getSelectorSupplier().get());
 
   /**
    * Handles a {@link Query} message
@@ -90,10 +99,12 @@ public abstract class AbstractQueryMessageHandler<T extends Query> extends State
         LOGGER.trace("Executing query from message {}", message);
         final Set<String> segmentIdsForWhichMetadataIsFetched = new HashSet<>();
         final Set<String> objectIdsForWhichMetadataIsFetched = new HashSet<>();
-        this.execute(session, qconf, message, segmentIdsForWhichMetadataIsFetched, objectIdsForWhichMetadataIsFetched);
+        this.execute(session, qconf, message, segmentIdsForWhichMetadataIsFetched,
+            objectIdsForWhichMetadataIsFetched);
       } catch (Exception e) {
         /* Error: Send QueryError Message to Client. */
-        LOGGER.error("An exception occurred during execution of similarity query message {}.", LogHelper.getStackTrace(e));
+        LOGGER.error("An exception occurred during execution of similarity query message {}.",
+            LogHelper.getStackTrace(e));
         this.write(session, new QueryError(uuid, e.getMessage()));
         return;
       }
@@ -107,27 +118,33 @@ public abstract class AbstractQueryMessageHandler<T extends Query> extends State
 
   /**
    * Executes the actual query specified by the {@link Query} object.
-   *  @param session WebSocket session the invocation is associated with.
-   * @param qconf The {@link QueryConfig} that contains additional specifications.
+   *
+   * @param session WebSocket session the invocation is associated with.
+   * @param qconf   The {@link QueryConfig} that contains additional specifications.
    * @param message {@link Query} that must be executed.
    */
-  protected abstract void execute(Session session, QueryConfig qconf, T message, Set<String> segmentIdsForWhichMetadataIsFetched, Set<String> objectIdsForWhichMetadataIsFetched) throws Exception;
+  protected abstract void execute(Session session, QueryConfig qconf, T message,
+      Set<String> segmentIdsForWhichMetadataIsFetched,
+      Set<String> objectIdsForWhichMetadataIsFetched) throws Exception;
 
   /**
-   * Performs a lookup for the {@link MediaSegmentDescriptor} identified by the provided IDs and returns a list of the {@link MediaSegmentDescriptor}s that were found.
+   * Performs a lookup for the {@link MediaSegmentDescriptor} identified by the provided IDs and
+   * returns a list of the {@link MediaSegmentDescriptor}s that were found.
    *
    * @param segmentIds List of segment IDs that should be looked up.
    * @return List of found {@link MediaSegmentDescriptor}
    */
   protected List<MediaSegmentDescriptor> loadSegments(List<String> segmentIds) {
-    final Map<String, MediaSegmentDescriptor> map = this.mediaSegmentReader.lookUpSegments(segmentIds);
+    final Map<String, MediaSegmentDescriptor> map = this.mediaSegmentReader
+        .lookUpSegments(segmentIds);
     final ArrayList<MediaSegmentDescriptor> sdList = new ArrayList<>(map.size());
     segmentIds.stream().filter(map::containsKey).forEach(s -> sdList.add(map.get(s)));
     return sdList;
   }
 
   /**
-   * Performs a lookup for the {@link MediaObjectDescriptor} identified by the provided object IDs and returns a list of the {@link MediaSegmentDescriptor}s that were found.
+   * Performs a lookup for the {@link MediaObjectDescriptor} identified by the provided object IDs
+   * and returns a list of the {@link MediaSegmentDescriptor}s that were found.
    *
    * @param objectIds List of object IDs that should be looked up.
    * @return List of found {@link MediaObjectDescriptor}
@@ -140,26 +157,34 @@ public abstract class AbstractQueryMessageHandler<T extends Query> extends State
   }
 
   /**
-   * Performs a lookup for {@link MediaObjectMetadataReader} identified by the provided segment IDs.
-   *  @param session The WebSocket session to write the data to.
-   * @param queryId The current query id used for transmitting data back.
+   * Performs a lookup for {@link MediaObjectMetadataReader} identified by the provided segment
+   * IDs.
+   *
+   * @param session   The WebSocket session to write the data to.
+   * @param queryId   The current query id used for transmitting data back.
    * @param objectIds List of object IDs for which to lookup metadata.
    */
-  protected synchronized List<Thread> loadAndWriteObjectMetadata(Session session, String queryId, List<String> objectIds, Collection<String> objectIdsForWhichMetadataIsFetched) {
+  protected synchronized List<Thread> loadAndWriteObjectMetadata(Session session, String queryId,
+      List<String> objectIds, Collection<String> objectIdsForWhichMetadataIsFetched) {
     if (objectIds.isEmpty()) {
       return new ArrayList<>();
     }
     objectIds.removeAll(objectIdsForWhichMetadataIsFetched);
     objectIdsForWhichMetadataIsFetched.addAll(objectIds);
     if (objectIds.size() > 100_000) {
-      return Lists.partition(objectIds, 100_000).stream().map(list -> loadAndWriteObjectMetadata(session, queryId, list, objectIdsForWhichMetadataIsFetched)).flatMap(Collection::stream).collect(Collectors.toList());
+      return Lists.partition(objectIds, 100_000).stream().map(
+          list -> loadAndWriteObjectMetadata(session, queryId, list,
+              objectIdsForWhichMetadataIsFetched)).flatMap(Collection::stream)
+          .collect(Collectors.toList());
     }
     Thread thread = new Thread(() -> {
-      final List<MediaObjectMetadataDescriptor> objectMetadata = this.objectMetadataReader.lookupMultimediaMetadata(objectIds);
+      final List<MediaObjectMetadataDescriptor> objectMetadata = this.objectMetadataReader
+          .lookupMultimediaMetadata(objectIds);
       if (objectMetadata.isEmpty()) {
         return;
       }
-      Lists.partition(objectMetadata, 100_000).forEach(list -> this.write(session, new MediaObjectMetadataQueryResult(queryId, list)));
+      Lists.partition(objectMetadata, 100_000)
+          .forEach(list -> this.write(session, new MediaObjectMetadataQueryResult(queryId, list)));
     });
     thread.setName("metadata-retrieval-objects");
     thread.start();
@@ -167,13 +192,17 @@ public abstract class AbstractQueryMessageHandler<T extends Query> extends State
   }
 
   /**
-   * Performs a lookup for {@link MediaSegmentMetadataDescriptor} identified by the provided segment IDs and writes them to the WebSocket stream.
-   * @param session The WebSocket session to write the data to.
-   * @param queryId The current query id used for transmitting data back.
-   * @param segmentIds List of segment IDs for which to lookup metadata.
+   * Performs a lookup for {@link MediaSegmentMetadataDescriptor} identified by the provided segment
+   * IDs and writes them to the WebSocket stream.
+   *
+   * @param session                             The WebSocket session to write the data to.
+   * @param queryId                             The current query id used for transmitting data
+   *                                            back.
+   * @param segmentIds                          List of segment IDs for which to lookup metadata.
    * @param segmentIdsForWhichMetadataIsFetched segmentids for which metadata is already fetched
    */
-  protected synchronized List<Thread> loadAndWriteSegmentMetadata(Session session, String queryId, List<String> segmentIds, Collection<String> segmentIdsForWhichMetadataIsFetched) {
+  protected synchronized List<Thread> loadAndWriteSegmentMetadata(Session session, String queryId,
+      List<String> segmentIds, Collection<String> segmentIdsForWhichMetadataIsFetched) {
     if (segmentIds.isEmpty()) {
       return new ArrayList<>();
     }
@@ -182,10 +211,14 @@ public abstract class AbstractQueryMessageHandler<T extends Query> extends State
     segmentIdsForWhichMetadataIsFetched.addAll(segmentIds);
     //chunk for memory safety-purposes
     if (segmentIds.size() > 100_000) {
-      return Lists.partition(segmentIds, 100_000).stream().map(list -> loadAndWriteSegmentMetadata(session, queryId, list, segmentIdsForWhichMetadataIsFetched)).flatMap(Collection::stream).collect(Collectors.toList());
+      return Lists.partition(segmentIds, 100_000).stream().map(
+          list -> loadAndWriteSegmentMetadata(session, queryId, list,
+              segmentIdsForWhichMetadataIsFetched)).flatMap(Collection::stream)
+          .collect(Collectors.toList());
     }
     Thread thread = new Thread(() -> {
-      final List<MediaSegmentMetadataDescriptor> segmentMetadata = this.segmentMetadataReader.lookupMultimediaMetadata(segmentIds);
+      final List<MediaSegmentMetadataDescriptor> segmentMetadata = this.segmentMetadataReader
+          .lookupMultimediaMetadata(segmentIds);
       if (segmentMetadata.isEmpty()) {
         return;
       }
@@ -206,18 +239,21 @@ public abstract class AbstractQueryMessageHandler<T extends Query> extends State
   }
 
   /**
-   * Fetches and submits all the data (e.g. {@link MediaObjectDescriptor}, {@link MediaSegmentDescriptor}) to the UI. Should be executed before sending results.
+   * Fetches and submits all the data (e.g. {@link MediaObjectDescriptor}, {@link
+   * MediaSegmentDescriptor}) to the UI. Should be executed before sending results.
    *
    * @return objectIds retrieved for the segmentIds
    */
-  protected List<String> submitSegmentAndObjectInformation(Session session, String queryId, List<String> segmentIds) {
+  protected List<String> submitSegmentAndObjectInformation(Session session, String queryId,
+      List<String> segmentIds) {
     StopWatch watch = StopWatch.createStarted();
     /* Load segment & object information. */
     LOGGER.trace("Loading segment information for {} segments", segmentIds.size());
     final List<MediaSegmentDescriptor> segments = this.loadSegments(segmentIds);
 
     LOGGER.trace("Loading object information");
-    final List<String> objectIds = segments.stream().map(MediaSegmentDescriptor::getObjectId).collect(Collectors.toList());
+    final List<String> objectIds = segments.stream().map(MediaSegmentDescriptor::getObjectId)
+        .collect(Collectors.toList());
     final List<MediaObjectDescriptor> objects = this.loadObjects(objectIds);
 
     if (segments.isEmpty() || objects.isEmpty()) {
@@ -232,31 +268,66 @@ public abstract class AbstractQueryMessageHandler<T extends Query> extends State
     return objectIds;
   }
 
-  protected List<Thread> submitMetadata(Session session, String queryId, List<String> segmentIds, List<String> objectIds, Collection<String> segmentIdsForWhichMetadataIsFetched, Collection<String> objectIdsForWhichMetadataIsFetched) {
+  /**
+   * Submits all the data (e.g. {@link MediaObjectDescriptor}, {@link MediaSegmentDescriptor}) to
+   * the UI. Should be executed before sending results.
+   */
+  protected void submitSegmentAndObjectDescriptors(Session session, String queryId,
+      List<MediaObjectDescriptor> objectDescriptors,
+      List<MediaSegmentDescriptor> segmentDescriptors) {
+    if (objectDescriptors.isEmpty() || segmentDescriptors.isEmpty()) {
+      LOGGER.traceEntry("Segment / Objectlist is Empty, ignoring this iteration");
+    }
+
+    this.write(session, new MediaObjectQueryResult(queryId, objectDescriptors));
+    this.write(session, new MediaSegmentQueryResult(queryId, segmentDescriptors));
+  }
+
+  protected List<Thread> submitMetadata(Session session, String queryId, List<String> segmentIds,
+      List<String> objectIds, Collection<String> segmentIdsForWhichMetadataIsFetched,
+      Collection<String> objectIdsForWhichMetadataIsFetched) {
     /* Load and transmit segment & object metadata. */
-    List<Thread> segmentThreads = this.loadAndWriteSegmentMetadata(session, queryId, segmentIds, segmentIdsForWhichMetadataIsFetched);
-    List<Thread> objectThreads = this.loadAndWriteObjectMetadata(session, queryId, objectIds, objectIdsForWhichMetadataIsFetched);
+    List<Thread> segmentThreads = this.loadAndWriteSegmentMetadata(session, queryId, segmentIds,
+        segmentIdsForWhichMetadataIsFetched);
+    List<Thread> objectThreads = this.loadAndWriteObjectMetadata(session, queryId, objectIds,
+        objectIdsForWhichMetadataIsFetched);
     segmentThreads.addAll(objectThreads);
     return segmentThreads;
   }
 
   /**
-   * Fetches and submits all the data (e.g. {@link MediaObjectDescriptor}, {@link MediaSegmentDescriptor}) associated with the raw results produced by a similarity search in a specific category. q
+   * Fetches and submits all the data (e.g. {@link MediaObjectDescriptor}, {@link
+   * MediaSegmentDescriptor}) associated with the raw results produced by a similarity search in a
+   * specific category. q
    *
-   * @param session The {@link Session} object used to transmit the results.
-   * @param queryId ID of the running query.
+   * @param session  The {@link Session} object used to transmit the results.
+   * @param queryId  ID of the running query.
    * @param category Name of the query category.
-   * @param raw List of raw per-category results (segmentId -> score).
+   * @param raw      List of raw per-category results (segmentId -> score).
    */
-  protected void finalizeAndSubmitResults(Session session, String queryId, String category, int containerId, List<StringDoublePair> raw) {
+  protected void finalizeAndSubmitResults(Session session, String queryId, String category,
+      int containerId, List<StringDoublePair> raw) {
     StopWatch watch = StopWatch.createStarted();
     final int stride = 50_000;
     for (int i = 0; i < Math.floorDiv(raw.size(), stride) + 1; i++) {
-      final List<StringDoublePair> sub = raw.subList(i * stride, Math.min((i + 1) * stride, raw.size()));
+      final List<StringDoublePair> sub = raw
+          .subList(i * stride, Math.min((i + 1) * stride, raw.size()));
 
       this.write(session, new SimilarityQueryResult(queryId, category, containerId, sub));
     }
     watch.stop();
-    LOGGER.trace("Finalizing & submitting results took {} ms", watch.getTime(TimeUnit.MILLISECONDS));
+    LOGGER
+        .trace("Finalizing & submitting results took {} ms", watch.getTime(TimeUnit.MILLISECONDS));
+  }
+
+  protected void finalizeAndSubmitTemporalResults(Session session, String queryId,
+      List<TemporalObject> raw) {
+    final int stride = 50_000;
+    for (int i = 0; i < Math.floorDiv(raw.size(), stride) + 1; i++) {
+      final List<TemporalObject> sub = raw
+          .subList(i * stride, Math.min((i + 1) * stride, raw.size()));
+
+      this.write(session, new TemporalQueryResult(queryId, sub));
+    }
   }
 }
