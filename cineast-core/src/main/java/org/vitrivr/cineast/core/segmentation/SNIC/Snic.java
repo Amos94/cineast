@@ -1,4 +1,4 @@
-package org.vitrivr.cineast.core.segmentation;
+package org.vitrivr.cineast.core.segmentation.SNIC;
 
 //Implementation of SNIC (Simple Non-Iterative Clustering)
 //Reference:  @inproceedings{snic_cvpr17, author = {Achanta, Radhakrishna and Susstrunk, Sabine}, title = {Superpixels and Polygons using Simple Non-Iterative Clustering}, booktitle = {IEEE Conference on Computer Vision and Pattern Recognition (CVPR)}, year = {2017} }

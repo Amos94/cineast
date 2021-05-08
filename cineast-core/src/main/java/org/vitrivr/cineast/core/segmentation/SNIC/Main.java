@@ -1,4 +1,4 @@
-package org.vitrivr.cineast.core.segmentation;
+package org.vitrivr.cineast.core.segmentation.SNIC;
 
 import java.io.IOException;
 

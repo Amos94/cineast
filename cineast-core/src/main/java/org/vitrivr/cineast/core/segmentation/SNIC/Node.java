@@ -1,4 +1,4 @@
-package org.vitrivr.cineast.core.segmentation;
+package org.vitrivr.cineast.core.segmentation.SNIC;
 
 public class Node {
     public int i; // the x and y values packed into one
