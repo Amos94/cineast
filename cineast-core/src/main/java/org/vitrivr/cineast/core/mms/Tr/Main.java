@@ -9,6 +9,8 @@ import org.opencv.video.Video;
 import org.opencv.videoio.VideoCapture;
 import org.vitrivr.cineast.core.mms.Algorithms.Polygons.RamerDouglasPeucker;
 import org.vitrivr.cineast.core.mms.Helper.ConvexHull;
+import org.vitrivr.cineast.core.mms.Helper.Volume;
+import org.vitrivr.cineast.core.mms.Helper.Voxel;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
@@ -114,7 +116,7 @@ public class Main {
 		}
 		int idx = 0;
 		int index = 0;
-
+		int frameNumber = 0;
 		while (true) {
 			if (!camera.read(frame))
 				break;
@@ -134,7 +136,7 @@ public class Main {
 				processFrame(camera, frame, diffFrame, mBGSub);
 				frame = diffFrame.clone();
 
-				array = detectionContours(diffFrame, index);
+				array = detectionContours(diffFrame, index, frameNumber);
 				++index;
 				// ///////
 				Vector<Point> detections = new Vector<>();
@@ -221,6 +223,7 @@ public class Main {
 			vidpanel4.setIcon(image4);
 			vidpanel4.repaint();
 
+			++frameNumber;
 		}
 
 	}
@@ -282,7 +285,7 @@ public class Main {
 		return ret;
 	}
 
-	public static Vector<Rect> detectionContours(Mat outmat, int index) {
+	public static Vector<Rect> detectionContours(Mat outmat, int index, int frameNumber) {
 		Mat v = new Mat();
 		Mat vv = outmat.clone();
 		List<MatOfPoint> contours = new ArrayList<MatOfPoint>();
@@ -292,7 +295,7 @@ public class Main {
 		int maxAreaIdx = -1;
 		Rect r = null;
 		Vector<Rect> rect_array = new Vector<Rect>();
-
+		Volume volume = new Volume();
 		for (int idx = 0; idx < contours.size(); idx++) {
 			Mat contour = contours.get(idx); //TODO: POLYGONIZE THIS CONTURS AND IT'S DONE!!!
 
@@ -324,6 +327,11 @@ public class Main {
 				mask.put((int) p.x, (int)p.y, 0);
 			}
 			System.out.println("--------------------------------------------------------------------");
+
+			//creating the voxel
+			Voxel voxel = new Voxel(frameNumber, simplifiedPolygon);
+			//add voxel to volume
+			volume.addVoxel(voxel);
 
 			if(IS_DEVELOPMENT) {
 				boolean write = false;
