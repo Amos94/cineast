@@ -14,6 +14,9 @@ uploadArchives {
                 authentication(userName: "$dbisNexusUsername", password: "$dbisNexusPassword")
             }
         }
+        flatDir {
+            dirs 'C:\\Dev\\fork\\cineast\\libs'
+        }
     }
 }
 
@@ -27,7 +30,7 @@ project.ext.ffmpegVersion = "4.1-1.4.4"
  * With Gradle 6.7 and MacOS, declaring dependencies as implementation means they do not get exposed to other projects
  */
 dependencies {
-
+    compile fileTree(dir: 'C:\\Dev\\fork\\cineast\\libs', include: ['*.jar'])
     /** THE CottontailDB proto dependency */
     compile 'org.vitrivr:cottontaildb-proto:0.11.0'
 

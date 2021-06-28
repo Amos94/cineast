@@ -62,3 +62,8 @@ index*
 
 ##macOS
 .DS_Store
+/cineast-core/src/main/java/org/vitrivr/cineast/core/mms/Data/
+*.jpg
+*.avi
+*.png
+*.mp4

@@ -27,6 +27,7 @@ subprojects {
             maven {
                 url "https://plugins.gradle.org/m2"
             }
+            maven { url("https://mvnrepository.com/artifact/net.imagej/ij") }
         }
 
         dependencies {
@@ -44,7 +45,9 @@ subprojects {
     repositories {
         jcenter()
         mavenCentral()
-
+        flatDir {
+            dirs 'C:\\Dev\\fork\\cineast\\libs'
+        }
     }
 
     /* Important warnings that are currently missing simply because there are too many: "cast", "rawtypes". Ideally, "all" should be used in the future. */
@@ -56,6 +59,11 @@ subprojects {
     compileTestJava.options.compilerArgs += enabledWarnings
 
     dependencies {
+
+        compile fileTree(dir: 'C:\\Dev\\fork\\cineast\\libs', include: ['*.jar'])
+
+        implementation group: 'net.imagej', name: 'ij', version: '1.53i'
+
         /** Log4j 2 */
         compile group: 'org.apache.logging.log4j', name: 'log4j-api', version: '2.12.0'
         compile group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.12.0'
