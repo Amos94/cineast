@@ -315,23 +315,25 @@ public class Main {
 
 			//var epsilon = 4;
 			double epsilon = (points.size() / (3 * (points.size()/4))) * 2;
-			//var simplifiedPolygon = RamerDouglasPeucker.douglasPeucker(polygon, epsilon);
-			List<org.vitrivr.cineast.core.mms.Helper.Point> simplifiedPolygon = new ArrayList<org.vitrivr.cineast.core.mms.Helper.Point>();
+			List<org.vitrivr.cineast.core.mms.Helper.Point> simplifiedPolygon = RamerDouglasPeucker.douglasPeucker(points, epsilon);
+			//List<org.vitrivr.cineast.core.mms.Helper.Point> simplifiedPolygon = new ArrayList<org.vitrivr.cineast.core.mms.Helper.Point>();
 			RamerDouglasPeucker.ramerDouglasPeucker(points, 1, simplifiedPolygon);
-			System.out.println("----------------Polygon with epsilon: " + epsilon +" ---------------------");
+			//System.out.println("----------------Polygon with epsilon: " + epsilon +" ---------------------");
 			for(org.vitrivr.cineast.core.mms.Helper.Point p : points) {
 				Point3 p2f = new Point3();
 				p2f.x = p.x;
 				p2f.y = p.y;
-				System.out.println(p);
+				//System.out.println(p);
 				mask.put((int) p.x, (int)p.y, 0);
 			}
-			System.out.println("--------------------------------------------------------------------");
+			//System.out.println("--------------------------------------------------------------------");
 
 			//creating the voxel
 			Voxel voxel = new Voxel(frameNumber, simplifiedPolygon);
 			//add voxel to volume
 			volume.addVoxel(voxel);
+
+			System.out.println(volume);
 
 			if(IS_DEVELOPMENT) {
 				boolean write = false;

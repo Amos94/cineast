@@ -18,4 +18,16 @@ public class Voxel {
     public List<Point> getPolygon(){
         return polygon;
     }
+
+    @Override
+    public String toString(){
+        StringBuilder ret = new StringBuilder();
+        ret.append("T: "+t);
+        ret.append("\n");
+        for(Point p : polygon) {
+            ret.append("x:" + p.x + " y:" + p.y);
+            ret.append("\n");
+        }
+        return ret.toString();
+    }
 }

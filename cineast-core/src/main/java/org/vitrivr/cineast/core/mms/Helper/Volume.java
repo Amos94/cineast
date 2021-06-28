@@ -26,4 +26,15 @@ public class Volume {
     public boolean removeVoxel(Voxel v){
         return volume.remove(v);
     }
+
+    @Override
+    public String toString(){
+        StringBuilder ret = new StringBuilder();
+        for(Voxel v : volume){
+            ret.append(v.toString());
+            ret.append("\n");
+        }
+
+        return ret.toString();
+    }
 }
