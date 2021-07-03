@@ -7,6 +7,7 @@ import org.opencv.imgproc.Imgproc;
 import org.opencv.video.BackgroundSubtractorMOG2;
 import org.opencv.video.Video;
 import org.opencv.videoio.VideoCapture;
+import org.vitrivr.cineast.core.mms.Algorithms.Polygons.Algos.Epsilon;
 import org.vitrivr.cineast.core.mms.Algorithms.Polygons.RamerDouglasPeucker;
 import org.vitrivr.cineast.core.mms.Helper.ConvexHull;
 import org.vitrivr.cineast.core.mms.Helper.Volume;
@@ -25,6 +26,7 @@ import java.util.List;
 import java.util.Vector;
 
 import static org.opencv.imgcodecs.Imgcodecs.imwrite;
+import static org.vitrivr.cineast.core.mms.Algorithms.Polygons.Algos.helpers.PolyBoolHelper.point;
 import static org.vitrivr.cineast.core.mms.Tr.CONFIG.IS_DEVELOPMENT;
 
 public class Main {
@@ -297,11 +299,11 @@ public class Main {
 		Vector<Rect> rect_array = new Vector<Rect>();
 		Volume volume = new Volume();
 		for (int idx = 0; idx < contours.size(); idx++) {
-			Mat contour = contours.get(idx); //TODO: POLYGONIZE THIS CONTURS AND IT'S DONE!!!
+			Mat contour = contours.get(idx);
 
 			//CREATING POLYGONS
 			double[][] _2dArray = Generate2DArray(contour, imag.rows(), imag.cols());
-			ArrayList<org.vitrivr.cineast.core.mms.Helper.Point> points= new ArrayList<org.vitrivr.cineast.core.mms.Helper.Point>();
+			ArrayList<org.vitrivr.cineast.core.mms.Helper.Point> points = new ArrayList<org.vitrivr.cineast.core.mms.Helper.Point>();
 			for (int i = 0; i < imag.cols(); ++i) {
 				for (int j = 0; j < imag.rows(); ++j) {
 					if (_2dArray[i][j] != 0)
@@ -309,22 +311,22 @@ public class Main {
 				}
 			}
 
-			Mat mask = new Mat (imag.rows(), imag.cols(), CvType.CV_8UC1);
+			Mat mask = new Mat(imag.rows(), imag.cols(), CvType.CV_8UC1);
 
 			List<org.vitrivr.cineast.core.mms.Helper.Point> convexHull = ConvexHull.makeHull(points);
 
 			//var epsilon = 4;
-			double epsilon = (points.size() / (3 * (points.size()/4))) * 2;
+			double epsilon = (points.size() / (3 * (points.size() / 4))) * 2;
 			List<org.vitrivr.cineast.core.mms.Helper.Point> simplifiedPolygon = RamerDouglasPeucker.douglasPeucker(points, epsilon);
 			//List<org.vitrivr.cineast.core.mms.Helper.Point> simplifiedPolygon = new ArrayList<org.vitrivr.cineast.core.mms.Helper.Point>();
 			RamerDouglasPeucker.ramerDouglasPeucker(points, 1, simplifiedPolygon);
 			//System.out.println("----------------Polygon with epsilon: " + epsilon +" ---------------------");
-			for(org.vitrivr.cineast.core.mms.Helper.Point p : points) {
+			for (org.vitrivr.cineast.core.mms.Helper.Point p : points) {
 				Point3 p2f = new Point3();
 				p2f.x = p.x;
 				p2f.y = p.y;
 				//System.out.println(p);
-				mask.put((int) p.x, (int)p.y, 0);
+				mask.put((int) p.x, (int) p.y, 0);
 			}
 			//System.out.println("--------------------------------------------------------------------");
 
@@ -333,16 +335,37 @@ public class Main {
 			//add voxel to volume
 			volume.addVoxel(voxel);
 
+			if(IS_DEVELOPMENT) {
+				//TODO: SAVE THE POLY TO DB, THEN RETRIEVE POLY AND DO THE BOOLEANS ON IT => LIKE SO:
+				//using polybool
+				Epsilon eps = new Epsilon();
+				List<List<double[]>> regions = new ArrayList<List<double[]>>();
+
+				List<double[]> region;
+				for (int vi = 0; vi < volume.getVolume().size(); ++vi) {
+					region = new ArrayList<double[]>();
+					Voxel vox = volume.getVolume().get(vi);
+					for (int pi = 0; pi < vox.getPolygon().size(); ++pi) {
+						org.vitrivr.cineast.core.mms.Helper.Point p = vox.getPolygon().get(pi);
+						region.add(point(p.x, p.y));
+					}
+					regions.add(region);
+				}
+
+				org.vitrivr.cineast.core.mms.Algorithms.Polygons.Algos.models.Polygon pol = new org.vitrivr.cineast.core.mms.Algorithms.Polygons.Algos.models.Polygon(regions);
+
+			}
+
 			System.out.println(volume);
 
-			if(IS_DEVELOPMENT) {
+			if (IS_DEVELOPMENT) {
 				boolean write = false;
-				for(org.vitrivr.cineast.core.mms.Helper.Point p : points) {
-					if(p.label == 0)
+				for (org.vitrivr.cineast.core.mms.Helper.Point p : points) {
+					if (p.label == 0)
 						write = true;
 				}
 
-				if(write) {
+				if (write) {
 					System.out.println("Writing...");
 					imwrite("C:\\Dev\\fork\\cineast\\cineast-core\\src\\main\\java\\org\\vitrivr\\cineast\\core\\mms\\Data\\graphcutdata\\contour" + index + ".jpg", mask);
 				}
