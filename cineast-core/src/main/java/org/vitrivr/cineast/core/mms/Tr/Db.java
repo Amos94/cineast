@@ -3,9 +3,8 @@ package org.vitrivr.cineast.core.mms.Tr;
 import com.google.protobuf.Empty;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
-
-
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.lang3.tuple.Triple;
 import org.vitrivr.cottontail.grpc.*;
 
 import java.io.BufferedReader;
@@ -36,16 +35,20 @@ public class Db {
     private static final TXNGrpc.TXNBlockingStub TXN_SERVICE = TXNGrpc.newBlockingStub(CHANNEL);
 
     /** Name of the Cottontail DB Schema. */
-    private static final String SCHEMA_NAME = "cottontail_example";
+    private static final String SCHEMA_NAME = "segmentation";
 
     /** Name of the Cottontail DB Schema and dimension of its vector column. */
     private static final Pair<String,Integer>[] ENTITIES = new Pair[]{Pair.of("scalablecolor", 64), Pair.of("cedd", 144), Pair.of("jhist", 576)};
 
+    //id(string), frame(int), region index(int), poly vector (float[] - take points two by two)
+    private static final Pair<String, Triple<Integer, Integer, Float[]>>[] POLYENTITIES = new Pair[]{};
     /**
      * Creates a Cottontail DB schema named "cottontail_example" using the DDL Stub.
      */
     public static void initializeSchema() {
-        final CottontailGrpc.CreateSchemaMessage schemaDefinitionMessage = CottontailGrpc.CreateSchemaMessage.newBuilder().setSchema(CottontailGrpc.SchemaName.newBuilder().setName(SCHEMA_NAME)).build();
+        final CottontailGrpc.CreateSchemaMessage schemaDefinitionMessage = CottontailGrpc.CreateSchemaMessage.
+                newBuilder().
+                setSchema(CottontailGrpc.SchemaName.newBuilder().setName(SCHEMA_NAME)).build();
         DDL_SERVICE.createSchema(schemaDefinitionMessage);
         System.out.println("Schema '" + SCHEMA_NAME + "' created successfully.");
     }
@@ -230,11 +233,11 @@ public class Db {
 
         initializeEntities(); /* Initialize empty entities. */
 
-        importData(); /* Import example data from resource bundle. */
+        //importData(); /* Import example data from resource bundle. */
 
-        executeSimpleSelect(); /* Execute simple SELECT statement with LIMIT. */
+        //executeSimpleSelect(); /* Execute simple SELECT statement with LIMIT. */
 
-        executeSelectWithWhere(); /* Execute simple SELECT statement with WHERE-clause. */
+        //executeSelectWithWhere(); /* Execute simple SELECT statement with WHERE-clause. */
 
         //executeNearestNeighborQuery(); /* Execute kNN query. */
     }
