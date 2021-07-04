@@ -1,23 +1,22 @@
 plugins {
     id 'com.github.johnrengelman.shadow' version '6.1.0'
-    id 'java'
-    id 'idea'
     id 'de.undercouch.download' version "4.1.1"
     id 'com.google.osdetector' version '1.6.2'
+    id 'java'
+    id 'idea'
 }
 
 allprojects {
     /* Group name of our artifacts */
     group = 'org.vitrivr'
+
     /* Our current version */
-    version = '3.0.3'
+    version = '3.0.3-SNAPSHOT'
 
     apply plugin: 'java'
+    apply plugin: 'maven-publish'
+    apply plugin: 'signing'
 }
-
-project.ext.protobufVersion = "3.14.0"
-project.ext.grpcVersion = "1.34.0"
-
 
 subprojects {
     buildscript {
@@ -47,86 +46,85 @@ subprojects {
         mavenCentral()
         flatDir {
             dirs 'C:\\Dev\\fork\\cineast\\libs'
+            maven {
+                url "https://oss.sonatype.org/content/repositories/snapshots/"
+            }
+        }
+
+        /* Important warnings that are currently missing simply because there are too many: "cast", "rawtypes". Ideally, "all" should be used in the future. */
+        def enabledWarnings = ["-Xlint:deprecation", "-Xlint:empty", "-Xlint:overrides", "-Xlint:serial", "-Xlint:static", "-Xlint:unchecked", "-Xlint:varargs"]
+        compileJava {
+            options.encoding = 'UTF-8'
+            options.compilerArgs += enabledWarnings
+        }
+        compileTestJava.options.compilerArgs += enabledWarnings
+
+        dependencies {
+
+            compile fileTree(dir: 'C:\\Dev\\fork\\cineast\\libs', include: ['*.jar'])
+
+            implementation group: 'net.imagej', name: 'ij', version: '1.53i'
+
+            /** Log4j 2 */
+            implementation group: 'org.apache.logging.log4j', name: 'log4j-api', version: version_log4j2
+            implementation group: 'org.apache.logging.log4j', name: 'log4j-core', version: version_log4j2
+            implementation group: 'org.apache.logging.log4j', name: 'log4j-slf4j-impl', version: version_log4j2
+
+            /** Jackson (JSON conversion) */
+            implementation group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: version_jackson
+            implementation group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: version_jackson
+
+            /** Test dependencies (JUnit 5) */
+            testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter-api', version: version_junit
+            testRuntimeOnly group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: version_junit
+            testImplementation group: 'org.junit.platform', name: 'junit-platform-launcher', version: version_junit_platform
         }
     }
 
-    /* Important warnings that are currently missing simply because there are too many: "cast", "rawtypes". Ideally, "all" should be used in the future. */
-    def enabledWarnings = ["-Xlint:deprecation", "-Xlint:empty", "-Xlint:overrides", "-Xlint:serial", "-Xlint:static", "-Xlint:unchecked", "-Xlint:varargs"]
-    compileJava {
-        options.encoding = 'UTF-8'
-        options.compilerArgs += enabledWarnings
+    project(':cineast-runtime') {
+        dependencies {
+            implementation project(path: ':cineast-core', configuration: 'shadow')
+        }
     }
-    compileTestJava.options.compilerArgs += enabledWarnings
 
-    dependencies {
-
-        compile fileTree(dir: 'C:\\Dev\\fork\\cineast\\libs', include: ['*.jar'])
-
-        implementation group: 'net.imagej', name: 'ij', version: '1.53i'
-
-        /** Log4j 2 */
-        compile group: 'org.apache.logging.log4j', name: 'log4j-api', version: '2.12.0'
-        compile group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.12.0'
-        compile group: 'org.apache.logging.log4j', name: 'log4j-slf4j-impl', version: '2.12.0'
-
-        /** Jackson (JSON conversion) */
-        compile group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: '2.12.0'
-        compile group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.12.0'
-
-        /** Test dependencies (JUnit 5) */
-        testCompile group: 'org.junit.jupiter', name: 'junit-jupiter-api', version: '5.5.0'
-        testCompile group: 'org.junit.platform', name: 'junit-platform-launcher', version: '1.3.2'
-        testRuntime group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: '5.5.0'
-
-        /** Protobuf & gRPC. */
-        compile group: "com.google.protobuf", name: "protobuf-java", version: "$protobufVersion"
-        compile group: "io.grpc", name: "grpc-netty", version: "${grpcVersion}"
-        compile group: "io.grpc", name: "grpc-protobuf", version: "${grpcVersion}"
-        compile group: "io.grpc", name: "grpc-stub", version: "${grpcVersion}"
+    project(':cineast-api') {
+        dependencies {
+            implementation project(path: ':cineast-runtime', configuration: 'shadow')
+            implementation project(path: ':cineast-core')
+        }
     }
-}
 
-project(':cineast-runtime') {
-    dependencies {
-        compile project(path: ':cineast-core', configuration: 'shadow')
+    idea {
+        module {
+            downloadJavadoc = true
+
+            excludeDirs += file('data')
+            excludeDirs += file('thumbnails')
+            excludeDirs += file('output')
+            excludeDirs += file('logs')
+        }
     }
-}
 
-project(':cineast-api') {
-    dependencies {
-        compile project(path: ':cineast-runtime', configuration: 'shadow')
-        compile project(path: ':cineast-core')
-    }
-}
-
-idea {
-    module {
-        downloadJavadoc = true
-
-        excludeDirs += file('data')
-        excludeDirs += file('thumbnails')
-    }
-}
-
-task getExternalFiles {
-    doLast {
-        def fileList = new File("externalFiles.csv")
-        fileList.eachLine { String line ->
-            def split = line.split(",")
-            download {
-                src split[0]
-                dest split[1]
+    task getExternalFiles {
+        doLast {
+            def fileList = new File("externalFiles.csv")
+            fileList.eachLine { String line ->
+                def split = line.split(",")
+                download {
+                    src split[0]
+                    dest split[1]
+                }
             }
         }
     }
+
+    task generateOpenApiSpecs(type: JavaExec) {
+        classpath = project(":cineast-api").sourceSets.main.runtimeClasspath
+        main = 'org.vitrivr.cineast.api.docs.GenerateOpenApiSpecs'
+
+        def config = project.hasProperty("cineastConfig") ? project.getProperty("cineastConfig") : "cineast.json"
+
+        args("${config}")
+    }
+
 }
-
-task generateOpenApiSpecs(type: JavaExec){
-    classpath = project(":cineast-api").sourceSets.main.runtimeClasspath
-    main = 'org.vitrivr.cineast.api.docs.GenerateOpenApiSpecs'
-
-    def config = project.hasProperty("cineastConfig") ? project.getProperty("cineastConfig") : "cineast.json"
-
-    args("${config}")
-}
-
