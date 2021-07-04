@@ -4,7 +4,6 @@ import com.google.protobuf.Empty;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.commons.lang3.tuple.Triple;
 import org.vitrivr.cottontail.grpc.*;
 
 import java.io.BufferedReader;
@@ -41,7 +40,7 @@ public class Db {
     private static final Pair<String,Integer>[] ENTITIES = new Pair[]{Pair.of("scalablecolor", 64), Pair.of("cedd", 144), Pair.of("jhist", 576)};
 
     //id(string), frame(int), region index(int), poly vector (float[] - take points two by two)
-    private static final Pair<String, Triple<Integer, Integer, Float[]>>[] POLYENTITIES = new Pair[]{};
+    private static final Pair<String, Integer>[] POLYENTITIES = new Pair[]{Pair.of("poly",100)};
     /**
      * Creates a Cottontail DB schema named "cottontail_example" using the DDL Stub.
      */
@@ -71,6 +70,27 @@ public class Db {
                     .setEntity(CottontailGrpc.EntityName.newBuilder().setName(entity.getLeft()).setSchema(CottontailGrpc.SchemaName.newBuilder().setName(SCHEMA_NAME))) /* Name of entity and schema it belongs to. */
                     .addColumns(CottontailGrpc.ColumnDefinition.newBuilder().setType(CottontailGrpc.Type.STRING).setName("id").setEngine(CottontailGrpc.Engine.MAPDB).setNullable(false)) /* 1st column: id (String) */
                     .addColumns(CottontailGrpc.ColumnDefinition.newBuilder().setType(CottontailGrpc.Type.FLOAT_VEC).setName("feature").setEngine(CottontailGrpc.Engine.MAPDB).setNullable(false).setLength(entity.getRight()))  /* 2nd column: feature (float vector of given dimension). */
+                    .build();
+
+            DDL_SERVICE.createEntity(CottontailGrpc.CreateEntityMessage.newBuilder().setDefinition(definition).build());
+            System.out.println("Entity '" + SCHEMA_NAME + "." + entity.getLeft() + "' created successfully.");
+        }
+    }
+
+    public static void initializePolyEntities() {
+        /**
+         * 1st col: id(string)
+         * 2nd col: frame(int)
+         * 3rd col: region index(int)
+         * 4th col: poly vector (float[] - take points two by two) // max 100 - i.e. 50 points per region
+         */
+        for (Pair<String,Integer> entity : POLYENTITIES) {
+            final CottontailGrpc.EntityDefinition definition = CottontailGrpc.EntityDefinition.newBuilder()
+                    .setEntity(CottontailGrpc.EntityName.newBuilder().setName(entity.getLeft()).setSchema(CottontailGrpc.SchemaName.newBuilder().setName(SCHEMA_NAME))) /* Name of entity and schema it belongs to. */
+                    .addColumns(CottontailGrpc.ColumnDefinition.newBuilder().setType(CottontailGrpc.Type.STRING).setName("id").setEngine(CottontailGrpc.Engine.MAPDB).setNullable(false)) /* 1st column: id (String) */
+                    .addColumns(CottontailGrpc.ColumnDefinition.newBuilder().setType(CottontailGrpc.Type.INTEGER).setName("id").setEngine(CottontailGrpc.Engine.MAPDB).setNullable(false)) /* 2nd column frame number*/
+                    .addColumns(CottontailGrpc.ColumnDefinition.newBuilder().setType(CottontailGrpc.Type.INTEGER).setName("id").setEngine(CottontailGrpc.Engine.MAPDB).setNullable(false)) /* 3rd column region index*/
+                    .addColumns(CottontailGrpc.ColumnDefinition.newBuilder().setType(CottontailGrpc.Type.FLOAT_VEC).setName("feature").setEngine(CottontailGrpc.Engine.MAPDB).setNullable(false).setLength(entity.getRight()))  /* 4th column poly vector*/
                     .build();
 
             DDL_SERVICE.createEntity(CottontailGrpc.CreateEntityMessage.newBuilder().setDefinition(definition).build());
@@ -229,9 +249,13 @@ public class Db {
      * @param args
      */
     public static void main(String[] args) {
+        dropSchema();
+
         initializeSchema(); /* Initialize empty schema ''. */
 
-        initializeEntities(); /* Initialize empty entities. */
+        //initializePolyEntities();
+
+        //initializeEntities(); /* Initialize empty entities. */
 
         //importData(); /* Import example data from resource bundle. */
 
