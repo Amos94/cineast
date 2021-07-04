@@ -335,27 +335,6 @@ public class Main {
 			//add voxel to volume
 			volume.addVoxel(voxel);
 
-			if(IS_DEVELOPMENT) {
-				//TODO: SAVE THE POLY TO DB, THEN RETRIEVE POLY AND DO THE BOOLEANS ON IT => LIKE SO:
-				//using polybool
-				Epsilon eps = new Epsilon();
-				List<List<double[]>> regions = new ArrayList<List<double[]>>();
-
-				List<double[]> region;
-				for (int vi = 0; vi < volume.getVolume().size(); ++vi) {
-					region = new ArrayList<double[]>();
-					Voxel vox = volume.getVolume().get(vi);
-					for (int pi = 0; pi < vox.getPolygon().size(); ++pi) {
-						org.vitrivr.cineast.core.mms.Helper.Point p = vox.getPolygon().get(pi);
-						region.add(point(p.x, p.y));
-					}
-					regions.add(region);
-				}
-
-				org.vitrivr.cineast.core.mms.Algorithms.Polygons.Algos.models.Polygon pol = new org.vitrivr.cineast.core.mms.Algorithms.Polygons.Algos.models.Polygon(regions);
-
-			}
-
 			System.out.println(volume);
 
 			if (IS_DEVELOPMENT) {
@@ -390,6 +369,28 @@ public class Main {
 				//TODO: RETRUN POLYGONS
 
 			}
+		}
+
+		if(!IS_DEVELOPMENT) {
+			//TODO: SAVE THE POLY TO DB, THEN RETRIEVE POLY AND DO THE BOOLEANS ON IT => LIKE SO:
+			//using polybool
+			Epsilon eps = new Epsilon();
+			List<List<double[]>> regions = new ArrayList<List<double[]>>();
+
+			List<double[]> region;
+			for (int vi = 0; vi < volume.getVolume().size(); ++vi) {
+				region = new ArrayList<double[]>();
+				Voxel vox = volume.getVolume().get(vi);
+				for (int pi = 0; pi < vox.getPolygon().size(); ++pi) {
+					org.vitrivr.cineast.core.mms.Helper.Point p = vox.getPolygon().get(pi);
+					region.add(point(p.x, p.y));
+				}
+				regions.add(region);
+			}
+
+			org.vitrivr.cineast.core.mms.Algorithms.Polygons.Algos.models.Polygon pol = new org.vitrivr.cineast.core.mms.Algorithms.Polygons.Algos.models.Polygon(regions);
+
+			System.out.println(pol);
 		}
 
 		v.release();

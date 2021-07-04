@@ -7,7 +7,7 @@ import java.awt.*;
 public class CONFIG {
 
 	public static boolean IS_DEVELOPMENT = false;
-	public static String filename = "C:\\Dev\\fork\\cineast\\cineast-core\\src\\main\\java\\org\\vitrivr\\cineast\\core\\mms\\Data\\bike.avi";
+	public static String filename = "C:\\Dev\\fork\\cineast\\cineast-core\\src\\main\\java\\org\\vitrivr\\cineast\\core\\mms\\Data\\atrium.avi";
 	
 	public static int FRAME_WIDTH = Toolkit.getDefaultToolkit().getScreenSize().width / 2;
 	public static int FRAME_HEIGHT = Toolkit.getDefaultToolkit().getScreenSize().height / 2;
