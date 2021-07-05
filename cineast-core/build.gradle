@@ -101,6 +101,9 @@ signing {
 dependencies {
     compile fileTree(dir: 'C:\\Dev\\fork\\cineast\\libs', include: ['*.jar'])
 
+    implementation group: 'org.javatuples', name: 'javatuples', version: '1.2'
+
+
     /** THE Cottontail DB proto dependency */
     implementation group: 'org.vitrivr', name: 'cottontaildb-proto', version: version_cottontaildb
     implementation group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib', version: version_kotlin_stdlib

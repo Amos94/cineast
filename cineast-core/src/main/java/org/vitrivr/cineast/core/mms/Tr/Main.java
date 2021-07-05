@@ -1,5 +1,6 @@
 package org.vitrivr.cineast.core.mms.Tr;
 
+import org.javatuples.Quartet;
 import org.opencv.core.Point;
 import org.opencv.core.*;
 import org.opencv.imgcodecs.Imgcodecs;
@@ -20,10 +21,8 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Vector;
+import java.util.*;
 
 import static org.opencv.imgcodecs.Imgcodecs.imwrite;
 import static org.vitrivr.cineast.core.mms.Algorithms.Polygons.Algos.helpers.PolyBoolHelper.point;
@@ -335,7 +334,7 @@ public class Main {
 			//add voxel to volume
 			volume.addVoxel(voxel);
 
-			System.out.println(volume);
+			//System.out.println(volume);
 
 			if (IS_DEVELOPMENT) {
 				boolean write = false;
@@ -372,6 +371,10 @@ public class Main {
 		}
 
 		if(!IS_DEVELOPMENT) {
+
+			//id
+			UUID id = UUID.randomUUID();
+
 			//TODO: SAVE THE POLY TO DB, THEN RETRIEVE POLY AND DO THE BOOLEANS ON IT => LIKE SO:
 			//using polybool
 			Epsilon eps = new Epsilon();
@@ -390,12 +393,58 @@ public class Main {
 
 			org.vitrivr.cineast.core.mms.Algorithms.Polygons.Algos.models.Polygon pol = new org.vitrivr.cineast.core.mms.Algorithms.Polygons.Algos.models.Polygon(regions);
 
-			System.out.println(pol);
+			//System.out.println(pol);
+
+			insertPolyData(pol, frameNumber);
 		}
 
 		v.release();
 		return rect_array;
 	}
 
+	public static List<Quartet<String, Integer, Integer, List<Float>>> insertPolyData(org.vitrivr.cineast.core.mms.Algorithms.Polygons.Algos.models.Polygon pol, int frame){
+		List<Quartet<String, Integer, Integer, List<Float>>> dbStructuredPolygon = new ArrayList<Quartet<String, Integer, Integer, List<Float>>>();
+
+		for(int i=0; i<pol.getRegions().size(); ++i){
+			String guid = UUID.randomUUID().toString();
+			int regionId = i;
+			List<Float> points = new ArrayList<Float>(Collections.<Float>nCopies(500, (float)-1));
+			List<double[]> region = pol.getRegions().get(i);
+
+			int k=0;
+			for(int j = 0; j<region.size(); ++j){
+				points.set(k, (float) region.get(j)[0]);
+				++k;
+				points.set(k, (float) region.get(j)[1]);
+				++k;
+			}
+			dbStructuredPolygon.add(new Quartet(guid, frame, regionId, points));
+		}
+
+		if(!IS_DEVELOPMENT) {
+			System.out.println(polyDataToString(dbStructuredPolygon));
+		}
+
+		return dbStructuredPolygon;
+	}
+
+	public static String polyDataToString(List<Quartet<String, Integer, Integer, List<Float>>> polyData){
+		StringBuilder sb = new StringBuilder();
+		sb.append("----- POLYGON -----" + "\n");
+		for(Quartet<String, Integer, Integer, List<Float>> q : polyData){
+			sb.append("id: " + q.getValue0() + "\n");
+			sb.append("frame: " + q.getValue1() + "\n");
+			sb.append("region idx: " + q.getValue2() + "\n");
+			String list = "Points:";
+			for(int i = 0; i<q.getValue3().size(); ++i){
+				list += " " + q.getValue3().get(i).toString();
+			}
+			sb.append(list + "\n");
+
+			sb.append("----- END POLYGON -----" + "\n");
+		}
+
+		return sb.toString();
+	}
 }
 

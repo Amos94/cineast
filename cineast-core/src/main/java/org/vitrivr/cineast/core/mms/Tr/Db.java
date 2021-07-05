@@ -145,6 +145,52 @@ public class Db {
     }
 
     /**
+     * Imports the example data contained in the resource bundle of the project.
+     */
+    public static void importPolyData() {
+        for (Pair<String,Integer> entity : ENTITIES) {
+            /* Start a transaction per INSERT. */
+            final CottontailGrpc.TransactionId txId = TXN_SERVICE.begin(Empty.getDefaultInstance());
+
+            /* Load data from file (in resources folder). */
+
+            final ClassLoader classloader = Thread.currentThread().getContextClassLoader();
+            try (final BufferedReader reader = new BufferedReader(new InputStreamReader(classloader.getResourceAsStream(entity.getLeft())))) {
+                String l;
+                while ((l = reader.readLine()) != null) {
+                    final String[] split = l.split("\t");
+
+                    /* Prepare data for first (id) column. */
+                    final CottontailGrpc.Literal id = CottontailGrpc.Literal.newBuilder().setStringData(split[0]).build();
+
+                    /* Prepare data for second (feature) column. */
+                    final CottontailGrpc.FloatVector.Builder vector = CottontailGrpc.FloatVector.newBuilder();
+                    for (String e : split[3].split(" ")) {
+                        vector.addVector(Float.parseFloat(e));
+                    }
+                    final CottontailGrpc.Literal feature = CottontailGrpc.Literal.newBuilder().setVectorData(CottontailGrpc.Vector.newBuilder().setFloatVector(vector)).build();
+
+                    /* Prepare INSERT message. */
+                    final CottontailGrpc.InsertMessage insertMessage = CottontailGrpc.InsertMessage.newBuilder()
+                            .setTxId(txId)
+                            .setFrom(CottontailGrpc.From.newBuilder().setScan(CottontailGrpc.Scan.newBuilder().setEntity(CottontailGrpc.EntityName.newBuilder().setName(entity.getLeft()).setSchema(CottontailGrpc.SchemaName.newBuilder().setName(SCHEMA_NAME))))) /* Entity the data should be inserted into. */
+                            .addElements(CottontailGrpc.InsertMessage.InsertElement.newBuilder().setColumn(CottontailGrpc.ColumnName.newBuilder().setName("id")).setValue(id).build())
+                            .addElements(CottontailGrpc.InsertMessage.InsertElement.newBuilder().setColumn(CottontailGrpc.ColumnName.newBuilder().setName("feature")).setValue(feature).build())
+                            .build();
+
+                    /* Send INSERT message. */
+                    DML_SERVICE.insert(insertMessage);
+                }
+                TXN_SERVICE.commit(txId);
+            } catch (IOException e) {
+                System.out.println("Exception during data import.");
+                TXN_SERVICE.rollback(txId);
+                e.printStackTrace();
+            }
+        }
+    }
+
+    /**
      * Select and display top 3 entries in each entity.
      */
     public static void executeSimpleSelect() {
@@ -253,7 +299,7 @@ public class Db {
 
         initializeSchema(); /* Initialize empty schema ''. */
 
-        //initializePolyEntities();
+        initializePolyEntities();
 
         //initializeEntities(); /* Initialize empty entities. */
 
