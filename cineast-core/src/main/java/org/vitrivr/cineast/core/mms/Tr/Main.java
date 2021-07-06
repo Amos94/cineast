@@ -3,6 +3,7 @@ package org.vitrivr.cineast.core.mms.Tr;
 import com.google.protobuf.Empty;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import org.apache.commons.lang3.tuple.Triple;
 import org.javatuples.Quartet;
 import org.opencv.core.Point;
 import org.opencv.core.*;
@@ -300,6 +301,7 @@ public class Main {
 		int maxAreaIdx = -1;
 		Rect r = null;
 		Vector<Rect> rect_array = new Vector<Rect>();
+		Vector<Quartet<Integer, Integer,Integer,Rect>> rect_volume = new Vector<Quartet<Integer, Integer, Integer, Rect>>();
 		Volume volume = new Volume();
 		for (int idx = 0; idx < contours.size(); idx++) {
 			Mat contour = contours.get(idx);
@@ -361,6 +363,7 @@ public class Main {
 				maxAreaIdx = idx;
 				r = Imgproc.boundingRect(contours.get(maxAreaIdx));
 				rect_array.add(r);
+				rect_volume.add(new Quartet(-1, frameNumber, index, r));
 				Imgproc.drawContours(imag, contours, maxAreaIdx, new Scalar(255, 0, 255));
 
 				//TODO: DO THE GRABCUT GIVEN THE RECTANGLES
@@ -404,7 +407,7 @@ public class Main {
 		}
 
 		//TODO: insert volume of BB
-		insertBBData(pol, framenumber);
+		insertBBData(rect_volume);
 
 		v.release();
 		return rect_array;
