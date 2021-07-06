@@ -40,7 +40,7 @@ public class Db {
     private static final Pair<String,Integer>[] ENTITIES = new Pair[]{Pair.of("scalablecolor", 64), Pair.of("cedd", 144), Pair.of("jhist", 576)};
 
     //id(string), frame(int), region index(int), poly vector (float[] - take points two by two)
-    private static final Pair<String, Integer>[] POLYENTITIES = new Pair[]{Pair.of("poly",100)};
+    private static final Pair<String, Integer>[] POLYENTITIES = new Pair[]{Pair.of("poly",500)};
     /**
      * Creates a Cottontail DB schema named "cottontail_example" using the DDL Stub.
      */
@@ -88,9 +88,9 @@ public class Db {
             final CottontailGrpc.EntityDefinition definition = CottontailGrpc.EntityDefinition.newBuilder()
                     .setEntity(CottontailGrpc.EntityName.newBuilder().setName(entity.getLeft()).setSchema(CottontailGrpc.SchemaName.newBuilder().setName(SCHEMA_NAME))) /* Name of entity and schema it belongs to. */
                     .addColumns(CottontailGrpc.ColumnDefinition.newBuilder().setType(CottontailGrpc.Type.STRING).setName("id").setEngine(CottontailGrpc.Engine.MAPDB).setNullable(false)) /* 1st column: id (String) */
-                    .addColumns(CottontailGrpc.ColumnDefinition.newBuilder().setType(CottontailGrpc.Type.INTEGER).setName("id").setEngine(CottontailGrpc.Engine.MAPDB).setNullable(false)) /* 2nd column frame number*/
-                    .addColumns(CottontailGrpc.ColumnDefinition.newBuilder().setType(CottontailGrpc.Type.INTEGER).setName("id").setEngine(CottontailGrpc.Engine.MAPDB).setNullable(false)) /* 3rd column region index*/
-                    .addColumns(CottontailGrpc.ColumnDefinition.newBuilder().setType(CottontailGrpc.Type.FLOAT_VEC).setName("feature").setEngine(CottontailGrpc.Engine.MAPDB).setNullable(false).setLength(entity.getRight()))  /* 4th column poly vector*/
+                    .addColumns(CottontailGrpc.ColumnDefinition.newBuilder().setType(CottontailGrpc.Type.INTEGER).setName("frame").setEngine(CottontailGrpc.Engine.MAPDB).setNullable(false)) /* 2nd column frame number*/
+                    .addColumns(CottontailGrpc.ColumnDefinition.newBuilder().setType(CottontailGrpc.Type.INTEGER).setName("region").setEngine(CottontailGrpc.Engine.MAPDB).setNullable(false)) /* 3rd column region index*/
+                    .addColumns(CottontailGrpc.ColumnDefinition.newBuilder().setType(CottontailGrpc.Type.FLOAT_VEC).setName("points").setEngine(CottontailGrpc.Engine.MAPDB).setNullable(false).setLength(entity.getRight()))  /* 4th column poly vector*/
                     .build();
 
             DDL_SERVICE.createEntity(CottontailGrpc.CreateEntityMessage.newBuilder().setDefinition(definition).build());
