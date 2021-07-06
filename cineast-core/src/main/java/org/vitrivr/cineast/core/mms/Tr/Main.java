@@ -3,7 +3,6 @@ package org.vitrivr.cineast.core.mms.Tr;
 import com.google.protobuf.Empty;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
-import org.apache.commons.lang3.tuple.Triple;
 import org.javatuples.Quartet;
 import org.opencv.core.Point;
 import org.opencv.core.*;
@@ -301,7 +300,7 @@ public class Main {
 		int maxAreaIdx = -1;
 		Rect r = null;
 		Vector<Rect> rect_array = new Vector<Rect>();
-		Vector<Quartet<Integer, Integer,Integer,Rect>> rect_volume = new Vector<Quartet<Integer, Integer, Integer, Rect>>();
+		Vector<Float> rect_volume = new Vector<Float>();
 		Volume volume = new Volume();
 		for (int idx = 0; idx < contours.size(); idx++) {
 			Mat contour = contours.get(idx);
@@ -363,7 +362,18 @@ public class Main {
 				maxAreaIdx = idx;
 				r = Imgproc.boundingRect(contours.get(maxAreaIdx));
 				rect_array.add(r);
-				rect_volume.add(new Quartet(-1, frameNumber, index, r));
+
+				//start new volume by adding min value
+				rect_volume.add((float)Integer.MIN_VALUE);
+				rect_volume.add((float)frameNumber);
+				rect_volume.add((float)index);
+				
+				//TODO: RECONCILE THE WAY POINTS ARE ADDED => TOO TIRED NOW
+				rect_volume.add((float)r.tl().x); rect_volume.add((float)r.tl().y);
+				rect_volume.add((float)r.br().x); rect_volume.add((float)r.tl().y);
+				rect_volume.add((float)r.tl().x); rect_volume.add((float)r.br().y);
+				rect_volume.add((float)r.br().x); rect_volume.add((float)r.br().y);
+				System.out.println(rect_volume);
 				Imgproc.drawContours(imag, contours, maxAreaIdx, new Scalar(255, 0, 255));
 
 				//TODO: DO THE GRABCUT GIVEN THE RECTANGLES
@@ -407,11 +417,13 @@ public class Main {
 		}
 
 		//TODO: insert volume of BB
-		insertBBData(rect_volume);
+		//insertBBData(rect_volume);
 
 		v.release();
 		return rect_array;
 	}
+
+
 
 	public static List<Quartet<String, Integer, Integer, List<Float>>> insertPolyData(org.vitrivr.cineast.core.mms.Algorithms.Polygons.Algos.models.Polygon pol, int frame){
 
