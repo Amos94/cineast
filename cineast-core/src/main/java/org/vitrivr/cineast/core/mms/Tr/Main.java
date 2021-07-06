@@ -403,6 +403,9 @@ public class Main {
 			insertPolyData(pol, frameNumber);
 		}
 
+		//TODO: insert volume of BB
+		insertBBData(pol, framenumber);
+
 		v.release();
 		return rect_array;
 	}
