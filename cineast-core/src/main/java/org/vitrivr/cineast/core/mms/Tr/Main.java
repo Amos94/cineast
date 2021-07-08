@@ -367,11 +367,11 @@ public class Main {
 				rect_volume.add((float)Integer.MIN_VALUE);
 				rect_volume.add((float)frameNumber);
 				rect_volume.add((float)index);
-				
+
 				//TODO: RECONCILE THE WAY POINTS ARE ADDED => TOO TIRED NOW
 				rect_volume.add((float)r.tl().x); rect_volume.add((float)r.tl().y);
-				rect_volume.add((float)r.br().x); rect_volume.add((float)r.tl().y);
-				rect_volume.add((float)r.tl().x); rect_volume.add((float)r.br().y);
+				rect_volume.add((float)r.tl().x + r.width); rect_volume.add((float)r.tl().y);
+				rect_volume.add((float)r.tl().x); rect_volume.add((float)r.tl().y + r.height);
 				rect_volume.add((float)r.br().x); rect_volume.add((float)r.br().y);
 				System.out.println(rect_volume);
 				Imgproc.drawContours(imag, contours, maxAreaIdx, new Scalar(255, 0, 255));
