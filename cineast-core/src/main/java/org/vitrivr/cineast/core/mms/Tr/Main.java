@@ -43,12 +43,15 @@ public class Main {
 	static Mat orgin = null;
 	static Mat kalman = null;
 	public static Tracker tracker;
+	private static Vector<Float> rect_volume;
 
 	public static void main(String[] args) throws InterruptedException {
 
 		if (args.length>0){
 			CONFIG.filename = args[0];
 		}
+
+		rect_volume = new Vector<Float>();
 
 		JFrame jFrame = new JFrame("MULTIPLE-TARGET TRACKING");
 		jFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -229,7 +232,20 @@ public class Main {
 			vidpanel4.repaint();
 
 			++frameNumber;
+
+			if(!IS_DEVELOPMENT)
+				if(rect_volume.size() >= 1000)
+					break;
 		}
+
+		//TODO: insert volume of BB
+		//initializeBBSchema();
+		//initializeBBEntitites();
+		Vector<Float> rect_features = new Vector<>(Collections.<Float>nCopies(1500, (float)-1));
+		for(int ind=0; ind<rect_volume.size(); ++ind)
+			rect_features.set(ind, rect_volume.get(ind));
+		String id = UUID.randomUUID().toString();
+		insertBBToDb(id, rect_features);
 
 	}
 
@@ -300,7 +316,7 @@ public class Main {
 		int maxAreaIdx = -1;
 		Rect r = null;
 		Vector<Rect> rect_array = new Vector<Rect>();
-		Vector<Float> rect_volume = new Vector<Float>();
+		//Vector<Float> rect_volume = new Vector<Float>();
 		Volume volume = new Volume();
 		for (int idx = 0; idx < contours.size(); idx++) {
 			Mat contour = contours.get(idx);
@@ -413,11 +429,8 @@ public class Main {
 			//System.out.println(pol);
 			//Db.dropSchema();
 			//initializeSchema();
-			insertPolyData(pol, frameNumber);
+			//insertPolyData(pol, frameNumber);
 		}
-
-		//TODO: insert volume of BB
-		//insertBBData(rect_volume);
 
 		v.release();
 		return rect_array;
@@ -480,6 +493,14 @@ public class Main {
 		System.out.println("Schema '" + SCHEMA_NAME + "' created successfully.");
 	}
 
+	public static void initializeBBSchema(){
+		final CottontailGrpc.CreateSchemaMessage schemaDefinitionMessage = CottontailGrpc.CreateSchemaMessage.
+				newBuilder().
+				setSchema(CottontailGrpc.SchemaName.newBuilder().setName("BB")).build();
+		DDL_SERVICE.createSchema(schemaDefinitionMessage);
+		System.out.println("Schema '" + "BB" + "' created successfully.");
+	}
+
 	public static void initializePolyEntitites(){
 		final CottontailGrpc.TransactionId txId = TXN_SERVICE.begin(Empty.getDefaultInstance());
 		final CottontailGrpc.EntityDefinition definition = CottontailGrpc.EntityDefinition.newBuilder()
@@ -496,8 +517,50 @@ public class Main {
 		System.out.println("Entity '" + SCHEMA_NAME + "." + "poly" + "' created successfully.");
 	}
 
-	/** Name of the Cottontail DB Schema and dimension of its vector column. */
+	public static void initializeBBEntitites(){
+		final CottontailGrpc.TransactionId txId = TXN_SERVICE.begin(Empty.getDefaultInstance());
+		final CottontailGrpc.EntityDefinition definition = CottontailGrpc.EntityDefinition.newBuilder()
+				.setEntity(CottontailGrpc.EntityName.newBuilder().setName("BB").setSchema(CottontailGrpc.SchemaName.newBuilder().setName("BB"))) /* Name of entity and schema it belongs to. */
+				.addColumns(CottontailGrpc.ColumnDefinition.newBuilder().setType(CottontailGrpc.Type.STRING).setName("id").setEngine(CottontailGrpc.Engine.MAPDB).setNullable(false)) /* 1st column: id (String) */
+				.addColumns(CottontailGrpc.ColumnDefinition.newBuilder().setType(CottontailGrpc.Type.FLOAT_VEC).setName("features").setEngine(CottontailGrpc.Engine.MAPDB).setNullable(false).setLength(1500))  /* 4th column poly vector*/
+				.build();
 
+		DDL_SERVICE.createEntity(CottontailGrpc.CreateEntityMessage.newBuilder().setTxId(txId).setDefinition(definition).build());
+
+		TXN_SERVICE.commit(txId);
+		System.out.println("Entity '" + "BB" + "." + "BB" + "' created successfully.");
+	}
+
+	/** Name of the Cottontail DB Schema and dimension of its vector column. */
+	public static void insertBBToDb(String guid, List<Float> points){
+		//initializeBBSchema();
+		//initializeBBEntitites();
+
+		/* Start a transaction per INSERT. */
+		final CottontailGrpc.TransactionId txId = TXN_SERVICE.begin(Empty.getDefaultInstance());
+
+
+		/* prepare for insert */
+		final CottontailGrpc.FloatVector.Builder vector = CottontailGrpc.FloatVector.newBuilder();
+		vector.addAllVector(points);
+		final CottontailGrpc.Literal id = CottontailGrpc.Literal.newBuilder().setStringData(guid).build();
+		final CottontailGrpc.Literal pvec = CottontailGrpc.Literal.newBuilder().setVectorData(CottontailGrpc.Vector.newBuilder().setFloatVector(vector)).build();
+
+		/* do insert */
+
+		/* Prepare INSERT message. */
+		final CottontailGrpc.InsertMessage insertMessage = CottontailGrpc.InsertMessage.newBuilder()
+				.setTxId(txId)
+				.setFrom(CottontailGrpc.From.newBuilder().setScan(CottontailGrpc.Scan.newBuilder().setEntity(CottontailGrpc.EntityName.newBuilder().setName("BB").setSchema(CottontailGrpc.SchemaName.newBuilder().setName("BB"))))) /* Entity the data should be inserted into. */
+				.addElements(CottontailGrpc.InsertMessage.InsertElement.newBuilder().setColumn(CottontailGrpc.ColumnName.newBuilder().setName("id")).setValue(id).build())
+				.addElements(CottontailGrpc.InsertMessage.InsertElement.newBuilder().setColumn(CottontailGrpc.ColumnName.newBuilder().setName("features")).setValue(pvec).build())
+				.build();
+
+		/* Send INSERT message. */
+		DML_SERVICE.insert(insertMessage);
+
+		TXN_SERVICE.commit(txId);
+	}
 	public static void insertToDb(String guid, int frame, int regionId, List<Float> points){
 		//initializePolyEntitites();
 
