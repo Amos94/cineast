@@ -44,6 +44,7 @@ public class Main {
 	static Mat kalman = null;
 	public static Tracker tracker;
 	private static Vector<Float> rect_volume;
+	private static Vector<Float> poly_volume;
 
 	public static void main(String[] args) throws InterruptedException {
 
@@ -379,6 +380,26 @@ public class Main {
 				r = Imgproc.boundingRect(contours.get(maxAreaIdx));
 				rect_array.add(r);
 
+				/**
+				 * POLYGON VOLUME BELOW (DB)
+				 * */
+
+				poly_volume.add((float)Integer.MIN_VALUE);
+				poly_volume.add((float)frameNumber);
+				poly_volume.add((float)index);
+				for(org.vitrivr.cineast.core.mms.Helper.Point p : simplifiedPolygon){
+					poly_volume.add((float)p.x);
+					poly_volume.add((float)p.y);
+				}
+
+				/**
+				 * POLYGON VOLUME END (DB)
+				 * */
+
+
+				/**
+				 * BB VOLUME BELOW (DB)
+				 * */
 				//start new volume by adding min value
 				rect_volume.add((float)Integer.MIN_VALUE);
 				rect_volume.add((float)frameNumber);
@@ -389,7 +410,10 @@ public class Main {
 				rect_volume.add((float)r.tl().x + r.width); rect_volume.add((float)r.tl().y);
 				rect_volume.add((float)r.tl().x); rect_volume.add((float)r.tl().y + r.height);
 				rect_volume.add((float)r.br().x); rect_volume.add((float)r.br().y);
-				System.out.println(rect_volume);
+				//System.out.println(rect_volume);
+				/**
+				 * BB VOLUME END (DB)
+				 * */
 				Imgproc.drawContours(imag, contours, maxAreaIdx, new Scalar(255, 0, 255));
 
 				//TODO: DO THE GRABCUT GIVEN THE RECTANGLES
