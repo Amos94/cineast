@@ -257,7 +257,9 @@ public class Main {
 					break;
 		}
 
-		//TODO: insert volume of BB
+		/**
+		 * BB volume insert
+		 */
 		//initializeBBSchema();
 		//initializeBBEntitites();
 		Vector<Float> rect_features = new Vector<>(Collections.<Float>nCopies(1500, (float)-1));
@@ -274,6 +276,9 @@ public class Main {
 		for(int ind=0; ind<poly_volume.size(); ++ind)
 			rect_features.set(ind, poly_volume.get(ind));
 		insertPVToDb(id, polyvol_features);
+
+
+		//TODO: perform KNN on vectors 
 
 	}
 
