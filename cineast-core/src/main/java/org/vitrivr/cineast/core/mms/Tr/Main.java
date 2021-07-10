@@ -39,6 +39,24 @@ public class Main {
 		// System.loadLibrary("opencv_java2410");
 	}
 
+	/** Cottontail DB gRPC channel; adjust Cottontail DB host and port according to your needs. */
+	private static final ManagedChannel CHANNEL  = ManagedChannelBuilder.forAddress("127.0.0.1", 1865).usePlaintext().build();
+
+	/** Cottontail DB Stub for DDL operations (e.g. create a new Schema or Entity). */
+	private static final DDLGrpc.DDLBlockingStub DDL_SERVICE = DDLGrpc.newBlockingStub(CHANNEL);
+
+	/** Cottontail DB Stub for DML operations (i.e. inserting Data). */
+	private static final DMLGrpc.DMLBlockingStub DML_SERVICE = DMLGrpc.newBlockingStub(CHANNEL);
+
+	/** Cottontail DB Stub for DQL operations (i.e. issuing queries).*/
+	private static final DQLGrpc.DQLBlockingStub DQL_SERVICE = DQLGrpc.newBlockingStub(CHANNEL);
+
+	/** Cottontail DB Stub for Transaction management.*/
+	private static final TXNGrpc.TXNBlockingStub TXN_SERVICE = TXNGrpc.newBlockingStub(CHANNEL);
+
+	/** Name of the Cottontail DB Schema. */
+	private static final String SCHEMA_NAME = "segmentation";
+
 	static Mat imag = null;
 	static Mat orgin = null;
 	static Mat kalman = null;
@@ -247,6 +265,15 @@ public class Main {
 			rect_features.set(ind, rect_volume.get(ind));
 		String id = UUID.randomUUID().toString();
 		insertBBToDb(id, rect_features);
+
+
+		/**
+		 * Poly volume insert
+		 */
+		Vector<Float> polyvol_features = new Vector<>(Collections.<Float>nCopies(7500000, (float)-1));
+		for(int ind=0; ind<poly_volume.size(); ++ind)
+			rect_features.set(ind, poly_volume.get(ind));
+		insertPVToDb(id, polyvol_features);
 
 	}
 
@@ -490,25 +517,6 @@ public class Main {
 		return dbStructuredPolygon;
 	}
 
-
-	/** Cottontail DB gRPC channel; adjust Cottontail DB host and port according to your needs. */
-	private static final ManagedChannel CHANNEL  = ManagedChannelBuilder.forAddress("127.0.0.1", 1865).usePlaintext().build();
-
-	/** Cottontail DB Stub for DDL operations (e.g. create a new Schema or Entity). */
-	private static final DDLGrpc.DDLBlockingStub DDL_SERVICE = DDLGrpc.newBlockingStub(CHANNEL);
-
-	/** Cottontail DB Stub for DML operations (i.e. inserting Data). */
-	private static final DMLGrpc.DMLBlockingStub DML_SERVICE = DMLGrpc.newBlockingStub(CHANNEL);
-
-	/** Cottontail DB Stub for DQL operations (i.e. issuing queries).*/
-	private static final DQLGrpc.DQLBlockingStub DQL_SERVICE = DQLGrpc.newBlockingStub(CHANNEL);
-
-	/** Cottontail DB Stub for Transaction management.*/
-	private static final TXNGrpc.TXNBlockingStub TXN_SERVICE = TXNGrpc.newBlockingStub(CHANNEL);
-
-	/** Name of the Cottontail DB Schema. */
-	private static final String SCHEMA_NAME = "segmentation";
-
 	public static void initializeSchema(){
 		final CottontailGrpc.CreateSchemaMessage schemaDefinitionMessage = CottontailGrpc.CreateSchemaMessage.
 				newBuilder().
@@ -533,6 +541,28 @@ public class Main {
 				.addColumns(CottontailGrpc.ColumnDefinition.newBuilder().setType(CottontailGrpc.Type.INTEGER).setName("frame").setEngine(CottontailGrpc.Engine.MAPDB).setNullable(false)) /* 2nd column frame number*/
 				.addColumns(CottontailGrpc.ColumnDefinition.newBuilder().setType(CottontailGrpc.Type.INTEGER).setName("region").setEngine(CottontailGrpc.Engine.MAPDB).setNullable(false)) /* 3rd column region index*/
 				.addColumns(CottontailGrpc.ColumnDefinition.newBuilder().setType(CottontailGrpc.Type.FLOAT_VEC).setName("points").setEngine(CottontailGrpc.Engine.MAPDB).setNullable(false).setLength(500))  /* 4th column poly vector*/
+				.build();
+
+		DDL_SERVICE.createEntity(CottontailGrpc.CreateEntityMessage.newBuilder().setTxId(txId).setDefinition(definition).build());
+
+		TXN_SERVICE.commit(txId);
+		System.out.println("Entity '" + SCHEMA_NAME + "." + "poly" + "' created successfully.");
+	}
+
+	public static void initializePolyVolumeSchema(){
+		final CottontailGrpc.CreateSchemaMessage schemaDefinitionMessage = CottontailGrpc.CreateSchemaMessage.
+				newBuilder().
+				setSchema(CottontailGrpc.SchemaName.newBuilder().setName("PV")).build();
+		DDL_SERVICE.createSchema(schemaDefinitionMessage);
+		System.out.println("Schema '" + "PV" + "' created successfully.");
+	}
+
+	public static void initializePolyVolumeEntitites(){
+		final CottontailGrpc.TransactionId txId = TXN_SERVICE.begin(Empty.getDefaultInstance());
+		final CottontailGrpc.EntityDefinition definition = CottontailGrpc.EntityDefinition.newBuilder()
+				.setEntity(CottontailGrpc.EntityName.newBuilder().setName("PV").setSchema(CottontailGrpc.SchemaName.newBuilder().setName("PV"))) /* Name of entity and schema it belongs to. */
+				.addColumns(CottontailGrpc.ColumnDefinition.newBuilder().setType(CottontailGrpc.Type.STRING).setName("id").setEngine(CottontailGrpc.Engine.MAPDB).setNullable(false)) /* 1st column: id (String) */
+				.addColumns(CottontailGrpc.ColumnDefinition.newBuilder().setType(CottontailGrpc.Type.FLOAT_VEC).setName("features").setEngine(CottontailGrpc.Engine.MAPDB).setNullable(false).setLength(7500000))  /* 4th column poly vector*/
 				.build();
 
 		DDL_SERVICE.createEntity(CottontailGrpc.CreateEntityMessage.newBuilder().setTxId(txId).setDefinition(definition).build());
@@ -576,6 +606,35 @@ public class Main {
 		final CottontailGrpc.InsertMessage insertMessage = CottontailGrpc.InsertMessage.newBuilder()
 				.setTxId(txId)
 				.setFrom(CottontailGrpc.From.newBuilder().setScan(CottontailGrpc.Scan.newBuilder().setEntity(CottontailGrpc.EntityName.newBuilder().setName("BB").setSchema(CottontailGrpc.SchemaName.newBuilder().setName("BB"))))) /* Entity the data should be inserted into. */
+				.addElements(CottontailGrpc.InsertMessage.InsertElement.newBuilder().setColumn(CottontailGrpc.ColumnName.newBuilder().setName("id")).setValue(id).build())
+				.addElements(CottontailGrpc.InsertMessage.InsertElement.newBuilder().setColumn(CottontailGrpc.ColumnName.newBuilder().setName("features")).setValue(pvec).build())
+				.build();
+
+		/* Send INSERT message. */
+		DML_SERVICE.insert(insertMessage);
+
+		TXN_SERVICE.commit(txId);
+	}
+	public static void insertPVToDb(String guid, List<Float> points){
+		initializePolyVolumeSchema();
+		initializePolyVolumeEntitites();
+
+		/* Start a transaction per INSERT. */
+		final CottontailGrpc.TransactionId txId = TXN_SERVICE.begin(Empty.getDefaultInstance());
+
+
+		/* prepare for insert */
+		final CottontailGrpc.FloatVector.Builder vector = CottontailGrpc.FloatVector.newBuilder();
+		vector.addAllVector(points);
+		final CottontailGrpc.Literal id = CottontailGrpc.Literal.newBuilder().setStringData(guid).build();
+		final CottontailGrpc.Literal pvec = CottontailGrpc.Literal.newBuilder().setVectorData(CottontailGrpc.Vector.newBuilder().setFloatVector(vector)).build();
+
+		/* do insert */
+
+		/* Prepare INSERT message. */
+		final CottontailGrpc.InsertMessage insertMessage = CottontailGrpc.InsertMessage.newBuilder()
+				.setTxId(txId)
+				.setFrom(CottontailGrpc.From.newBuilder().setScan(CottontailGrpc.Scan.newBuilder().setEntity(CottontailGrpc.EntityName.newBuilder().setName("PV").setSchema(CottontailGrpc.SchemaName.newBuilder().setName("PV"))))) /* Entity the data should be inserted into. */
 				.addElements(CottontailGrpc.InsertMessage.InsertElement.newBuilder().setColumn(CottontailGrpc.ColumnName.newBuilder().setName("id")).setValue(id).build())
 				.addElements(CottontailGrpc.InsertMessage.InsertElement.newBuilder().setColumn(CottontailGrpc.ColumnName.newBuilder().setName("features")).setValue(pvec).build())
 				.build();
