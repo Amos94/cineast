@@ -96,7 +96,7 @@ public class DatabaseHelper {
 		final CottontailGrpc.EntityDefinition definition = CottontailGrpc.EntityDefinition.newBuilder()
 				.setEntity(CottontailGrpc.EntityName.newBuilder().setName("BB").setSchema(CottontailGrpc.SchemaName.newBuilder().setName("BB"))) /* Name of entity and schema it belongs to. */
 				.addColumns(CottontailGrpc.ColumnDefinition.newBuilder().setType(CottontailGrpc.Type.STRING).setName("id").setEngine(CottontailGrpc.Engine.MAPDB).setNullable(false)) /* 1st column: id (String) */
-				.addColumns(CottontailGrpc.ColumnDefinition.newBuilder().setType(CottontailGrpc.Type.FLOAT_VEC).setName("features").setEngine(CottontailGrpc.Engine.MAPDB).setNullable(false).setLength(1500))  /* 4th column poly vector*/
+				.addColumns(CottontailGrpc.ColumnDefinition.newBuilder().setType(CottontailGrpc.Type.FLOAT_VEC).setName("features").setEngine(CottontailGrpc.Engine.MAPDB).setNullable(false).setLength(1000000))  /* 4th column poly vector*/
 				.build();
 
 		DDL_SERVICE.createEntity(CottontailGrpc.CreateEntityMessage.newBuilder().setTxId(txId).setDefinition(definition).build());
@@ -132,7 +132,7 @@ public class DatabaseHelper {
 		final CottontailGrpc.EntityDefinition definition = CottontailGrpc.EntityDefinition.newBuilder()
 				.setEntity(CottontailGrpc.EntityName.newBuilder().setName("PV").setSchema(CottontailGrpc.SchemaName.newBuilder().setName("PV"))) /* Name of entity and schema it belongs to. */
 				.addColumns(CottontailGrpc.ColumnDefinition.newBuilder().setType(CottontailGrpc.Type.STRING).setName("id").setEngine(CottontailGrpc.Engine.MAPDB).setNullable(false)) /* 1st column: id (String) */
-				.addColumns(CottontailGrpc.ColumnDefinition.newBuilder().setType(CottontailGrpc.Type.FLOAT_VEC).setName("features").setEngine(CottontailGrpc.Engine.MAPDB).setNullable(false).setLength(7500000))  /* 4th column poly vector*/
+				.addColumns(CottontailGrpc.ColumnDefinition.newBuilder().setType(CottontailGrpc.Type.FLOAT_VEC).setName("features").setEngine(CottontailGrpc.Engine.MAPDB).setNullable(false).setLength(1000000))  /* 4th column poly vector*/
 				.build();
 
 		DDL_SERVICE.createEntity(CottontailGrpc.CreateEntityMessage.newBuilder().setTxId(txId).setDefinition(definition).build());
@@ -173,8 +173,8 @@ public class DatabaseHelper {
 		TXN_SERVICE.commit(txId);
 	}
 	public static void insertPVToDb(String guid, List<Float> points){
-		initializePolyVolumeSchema();
-		initializePolyVolumeEntitites();
+		//initializePolyVolumeSchema();
+		//initializePolyVolumeEntitites();
 
 		/* Start a transaction per INSERT. */
 		final CottontailGrpc.TransactionId txId = TXN_SERVICE.begin(Empty.getDefaultInstance());

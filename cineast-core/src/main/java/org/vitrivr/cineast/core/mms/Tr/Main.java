@@ -14,10 +14,7 @@ import org.vitrivr.cineast.core.mms.Algorithms.Polygons.RamerDouglasPeucker;
 import org.vitrivr.cineast.core.mms.Helper.ConvexHull;
 import org.vitrivr.cineast.core.mms.Helper.Volume;
 import org.vitrivr.cineast.core.mms.Helper.Voxel;
-import org.vitrivr.cottontail.grpc.DDLGrpc;
-import org.vitrivr.cottontail.grpc.DMLGrpc;
-import org.vitrivr.cottontail.grpc.DQLGrpc;
-import org.vitrivr.cottontail.grpc.TXNGrpc;
+import org.vitrivr.cottontail.grpc.*;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
@@ -73,6 +70,7 @@ public class Main {
 		}
 
 		rect_volume = new Vector<Float>();
+		poly_volume = new Vector<Float>();
 
 		JFrame jFrame = new JFrame("MULTIPLE-TARGET TRACKING");
 		jFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -262,14 +260,14 @@ public class Main {
 		/**
 		 * BB volume insert
 		 */
-		//initializeBBSchema();
-		//initializeBBEntitites();
-		Vector<Float> rect_features = new Vector<>(Collections.<Float>nCopies(1500, (float)-1));
+		//dbHelper.initializeBBSchema();
+		//dbHelper.initializeBBEntitites();
+		Vector<Float> rect_features = new Vector<>(Collections.<Float>nCopies(1000000, (float)-1));
 		for(int ind=0; ind<rect_volume.size(); ++ind)
 			rect_features.set(ind, rect_volume.get(ind));
 		String id = UUID.randomUUID().toString();
 
-		dbHelper.insertBBToDb(id, rect_features);
+		//dbHelper.insertBBToDb(id, rect_features);
 		/**
 		 * BB volume insert END
 		 */
@@ -278,17 +276,21 @@ public class Main {
 		/**
 		 * Poly volume insert
 		 */
-		Vector<Float> polyvol_features = new Vector<>(Collections.<Float>nCopies(7500000, (float)-1));
+		//dbHelper.initializePolyVolumeSchema();
+		//dbHelper.initializePolyVolumeEntitites();
+		Vector<Float> polyvol_features = new Vector<>(Collections.<Float>nCopies(1000000, (float)-1));
 		for(int ind=0; ind<poly_volume.size(); ++ind)
 			rect_features.set(ind, poly_volume.get(ind));
 
-		dbHelper.insertPVToDb(id, polyvol_features);
+		//dbHelper.insertPVToDb(id, polyvol_features);
 		/**
 		 * Poly volume insert END
 		 */
 
-		//TODO: perform KNN on vectors
-
+		//perform KNN on vectors
+		final CottontailGrpc.FloatVector.Builder poly_vol_vector = CottontailGrpc.FloatVector.newBuilder();
+		poly_vol_vector.addAllVector(polyvol_features);
+		dbHelper.executeNearestNeighborQuery("af21e2eb-aaba-4528-b259-50c7c07fe68a",poly_vol_vector,"PV", "PV");
 	}
 
 	// background substractionMOG2
