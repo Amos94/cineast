@@ -163,7 +163,7 @@ public class Main {
 				processFrame(camera, frame, diffFrame, mBGSub);
 				frame = diffFrame.clone();
 
-				array = detectionContours(diffFrame, index, frameNumber);
+				array = detectContours(diffFrame, index, frameNumber);
 				++index;
 				// ///////
 				Vector<Point> detections = new Vector<>();
@@ -290,7 +290,7 @@ public class Main {
 		//perform KNN on vectors
 		final CottontailGrpc.FloatVector.Builder poly_vol_vector = CottontailGrpc.FloatVector.newBuilder();
 		poly_vol_vector.addAllVector(polyvol_features);
-		dbHelper.executeNearestNeighborQuery("f584156d-0f56-47ec-a6d1-00ecb6680481",poly_vol_vector,"PV", "PV");
+		dbHelper.executeNearestNeighborQuery(poly_vol_vector,"PV", "PV");
 
 	}
 
@@ -351,7 +351,7 @@ public class Main {
 		return ret;
 	}
 
-	public static Vector<Rect> detectionContours(Mat outmat, int index, int frameNumber) {
+	public static Vector<Rect> detectContours(Mat outmat, int index, int frameNumber) {
 		Mat v = new Mat();
 		Mat vv = outmat.clone();
 		List<MatOfPoint> contours = new ArrayList<MatOfPoint>();
@@ -503,6 +503,5 @@ public class Main {
 		v.release();
 		return rect_array;
 	}
-
 }
 
