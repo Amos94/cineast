@@ -1,9 +1,7 @@
 package org.vitrivr.cineast.core.mms.Tr;
 
-import com.google.protobuf.Empty;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
-import org.javatuples.Quartet;
 import org.opencv.core.Point;
 import org.opencv.core.*;
 import org.opencv.imgcodecs.Imgcodecs;
@@ -16,7 +14,10 @@ import org.vitrivr.cineast.core.mms.Algorithms.Polygons.RamerDouglasPeucker;
 import org.vitrivr.cineast.core.mms.Helper.ConvexHull;
 import org.vitrivr.cineast.core.mms.Helper.Volume;
 import org.vitrivr.cineast.core.mms.Helper.Voxel;
-import org.vitrivr.cottontail.grpc.*;
+import org.vitrivr.cottontail.grpc.DDLGrpc;
+import org.vitrivr.cottontail.grpc.DMLGrpc;
+import org.vitrivr.cottontail.grpc.DQLGrpc;
+import org.vitrivr.cottontail.grpc.TXNGrpc;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
@@ -63,9 +64,10 @@ public class Main {
 	public static Tracker tracker;
 	private static Vector<Float> rect_volume;
 	private static Vector<Float> poly_volume;
+	private static DatabaseHelper dbHelper;
 
 	public static void main(String[] args) throws InterruptedException {
-
+		dbHelper = new DatabaseHelper();
 		if (args.length>0){
 			CONFIG.filename = args[0];
 		}
@@ -266,7 +268,11 @@ public class Main {
 		for(int ind=0; ind<rect_volume.size(); ++ind)
 			rect_features.set(ind, rect_volume.get(ind));
 		String id = UUID.randomUUID().toString();
-		insertBBToDb(id, rect_features);
+
+		dbHelper.insertBBToDb(id, rect_features);
+		/**
+		 * BB volume insert END
+		 */
 
 
 		/**
@@ -275,10 +281,13 @@ public class Main {
 		Vector<Float> polyvol_features = new Vector<>(Collections.<Float>nCopies(7500000, (float)-1));
 		for(int ind=0; ind<poly_volume.size(); ++ind)
 			rect_features.set(ind, poly_volume.get(ind));
-		insertPVToDb(id, polyvol_features);
 
+		dbHelper.insertPVToDb(id, polyvol_features);
+		/**
+		 * Poly volume insert END
+		 */
 
-		//TODO: perform KNN on vectors 
+		//TODO: perform KNN on vectors
 
 	}
 
@@ -492,213 +501,5 @@ public class Main {
 		return rect_array;
 	}
 
-
-
-	public static List<Quartet<String, Integer, Integer, List<Float>>> insertPolyData(org.vitrivr.cineast.core.mms.Algorithms.Polygons.Algos.models.Polygon pol, int frame){
-
-		List<Quartet<String, Integer, Integer, List<Float>>> dbStructuredPolygon = new ArrayList<Quartet<String, Integer, Integer, List<Float>>>();
-
-		for(int i=0; i<pol.getRegions().size(); ++i){
-			String guid = UUID.randomUUID().toString();
-			int regionId = i;
-			List<Float> points = new ArrayList<Float>(Collections.<Float>nCopies(500, (float)-1));
-			List<double[]> region = pol.getRegions().get(i);
-
-			int k=0;
-			for(int j = 0; j<region.size(); ++j){
-				points.set(k, (float) region.get(j)[0]);
-				++k;
-				points.set(k, (float) region.get(j)[1]);
-				++k;
-			}
-			dbStructuredPolygon.add(new Quartet(guid, frame, regionId, points));
-			insertToDb(guid, frame, regionId,  points);
-		}
-
-		if(!IS_DEVELOPMENT) {
-			System.out.println(polyDataToString(dbStructuredPolygon));
-		}
-
-		return dbStructuredPolygon;
-	}
-
-	public static void initializeSchema(){
-		final CottontailGrpc.CreateSchemaMessage schemaDefinitionMessage = CottontailGrpc.CreateSchemaMessage.
-				newBuilder().
-				setSchema(CottontailGrpc.SchemaName.newBuilder().setName(SCHEMA_NAME)).build();
-		DDL_SERVICE.createSchema(schemaDefinitionMessage);
-		System.out.println("Schema '" + SCHEMA_NAME + "' created successfully.");
-	}
-
-	public static void initializeBBSchema(){
-		final CottontailGrpc.CreateSchemaMessage schemaDefinitionMessage = CottontailGrpc.CreateSchemaMessage.
-				newBuilder().
-				setSchema(CottontailGrpc.SchemaName.newBuilder().setName("BB")).build();
-		DDL_SERVICE.createSchema(schemaDefinitionMessage);
-		System.out.println("Schema '" + "BB" + "' created successfully.");
-	}
-
-	public static void initializePolyEntitites(){
-		final CottontailGrpc.TransactionId txId = TXN_SERVICE.begin(Empty.getDefaultInstance());
-		final CottontailGrpc.EntityDefinition definition = CottontailGrpc.EntityDefinition.newBuilder()
-				.setEntity(CottontailGrpc.EntityName.newBuilder().setName("poly").setSchema(CottontailGrpc.SchemaName.newBuilder().setName(SCHEMA_NAME))) /* Name of entity and schema it belongs to. */
-				.addColumns(CottontailGrpc.ColumnDefinition.newBuilder().setType(CottontailGrpc.Type.STRING).setName("id").setEngine(CottontailGrpc.Engine.MAPDB).setNullable(false)) /* 1st column: id (String) */
-				.addColumns(CottontailGrpc.ColumnDefinition.newBuilder().setType(CottontailGrpc.Type.INTEGER).setName("frame").setEngine(CottontailGrpc.Engine.MAPDB).setNullable(false)) /* 2nd column frame number*/
-				.addColumns(CottontailGrpc.ColumnDefinition.newBuilder().setType(CottontailGrpc.Type.INTEGER).setName("region").setEngine(CottontailGrpc.Engine.MAPDB).setNullable(false)) /* 3rd column region index*/
-				.addColumns(CottontailGrpc.ColumnDefinition.newBuilder().setType(CottontailGrpc.Type.FLOAT_VEC).setName("points").setEngine(CottontailGrpc.Engine.MAPDB).setNullable(false).setLength(500))  /* 4th column poly vector*/
-				.build();
-
-		DDL_SERVICE.createEntity(CottontailGrpc.CreateEntityMessage.newBuilder().setTxId(txId).setDefinition(definition).build());
-
-		TXN_SERVICE.commit(txId);
-		System.out.println("Entity '" + SCHEMA_NAME + "." + "poly" + "' created successfully.");
-	}
-
-	public static void initializePolyVolumeSchema(){
-		final CottontailGrpc.CreateSchemaMessage schemaDefinitionMessage = CottontailGrpc.CreateSchemaMessage.
-				newBuilder().
-				setSchema(CottontailGrpc.SchemaName.newBuilder().setName("PV")).build();
-		DDL_SERVICE.createSchema(schemaDefinitionMessage);
-		System.out.println("Schema '" + "PV" + "' created successfully.");
-	}
-
-	public static void initializePolyVolumeEntitites(){
-		final CottontailGrpc.TransactionId txId = TXN_SERVICE.begin(Empty.getDefaultInstance());
-		final CottontailGrpc.EntityDefinition definition = CottontailGrpc.EntityDefinition.newBuilder()
-				.setEntity(CottontailGrpc.EntityName.newBuilder().setName("PV").setSchema(CottontailGrpc.SchemaName.newBuilder().setName("PV"))) /* Name of entity and schema it belongs to. */
-				.addColumns(CottontailGrpc.ColumnDefinition.newBuilder().setType(CottontailGrpc.Type.STRING).setName("id").setEngine(CottontailGrpc.Engine.MAPDB).setNullable(false)) /* 1st column: id (String) */
-				.addColumns(CottontailGrpc.ColumnDefinition.newBuilder().setType(CottontailGrpc.Type.FLOAT_VEC).setName("features").setEngine(CottontailGrpc.Engine.MAPDB).setNullable(false).setLength(7500000))  /* 4th column poly vector*/
-				.build();
-
-		DDL_SERVICE.createEntity(CottontailGrpc.CreateEntityMessage.newBuilder().setTxId(txId).setDefinition(definition).build());
-
-		TXN_SERVICE.commit(txId);
-		System.out.println("Entity '" + SCHEMA_NAME + "." + "poly" + "' created successfully.");
-	}
-
-	public static void initializeBBEntitites(){
-		final CottontailGrpc.TransactionId txId = TXN_SERVICE.begin(Empty.getDefaultInstance());
-		final CottontailGrpc.EntityDefinition definition = CottontailGrpc.EntityDefinition.newBuilder()
-				.setEntity(CottontailGrpc.EntityName.newBuilder().setName("BB").setSchema(CottontailGrpc.SchemaName.newBuilder().setName("BB"))) /* Name of entity and schema it belongs to. */
-				.addColumns(CottontailGrpc.ColumnDefinition.newBuilder().setType(CottontailGrpc.Type.STRING).setName("id").setEngine(CottontailGrpc.Engine.MAPDB).setNullable(false)) /* 1st column: id (String) */
-				.addColumns(CottontailGrpc.ColumnDefinition.newBuilder().setType(CottontailGrpc.Type.FLOAT_VEC).setName("features").setEngine(CottontailGrpc.Engine.MAPDB).setNullable(false).setLength(1500))  /* 4th column poly vector*/
-				.build();
-
-		DDL_SERVICE.createEntity(CottontailGrpc.CreateEntityMessage.newBuilder().setTxId(txId).setDefinition(definition).build());
-
-		TXN_SERVICE.commit(txId);
-		System.out.println("Entity '" + "BB" + "." + "BB" + "' created successfully.");
-	}
-
-	/** Name of the Cottontail DB Schema and dimension of its vector column. */
-	public static void insertBBToDb(String guid, List<Float> points){
-		//initializeBBSchema();
-		//initializeBBEntitites();
-
-		/* Start a transaction per INSERT. */
-		final CottontailGrpc.TransactionId txId = TXN_SERVICE.begin(Empty.getDefaultInstance());
-
-
-		/* prepare for insert */
-		final CottontailGrpc.FloatVector.Builder vector = CottontailGrpc.FloatVector.newBuilder();
-		vector.addAllVector(points);
-		final CottontailGrpc.Literal id = CottontailGrpc.Literal.newBuilder().setStringData(guid).build();
-		final CottontailGrpc.Literal pvec = CottontailGrpc.Literal.newBuilder().setVectorData(CottontailGrpc.Vector.newBuilder().setFloatVector(vector)).build();
-
-		/* do insert */
-
-		/* Prepare INSERT message. */
-		final CottontailGrpc.InsertMessage insertMessage = CottontailGrpc.InsertMessage.newBuilder()
-				.setTxId(txId)
-				.setFrom(CottontailGrpc.From.newBuilder().setScan(CottontailGrpc.Scan.newBuilder().setEntity(CottontailGrpc.EntityName.newBuilder().setName("BB").setSchema(CottontailGrpc.SchemaName.newBuilder().setName("BB"))))) /* Entity the data should be inserted into. */
-				.addElements(CottontailGrpc.InsertMessage.InsertElement.newBuilder().setColumn(CottontailGrpc.ColumnName.newBuilder().setName("id")).setValue(id).build())
-				.addElements(CottontailGrpc.InsertMessage.InsertElement.newBuilder().setColumn(CottontailGrpc.ColumnName.newBuilder().setName("features")).setValue(pvec).build())
-				.build();
-
-		/* Send INSERT message. */
-		DML_SERVICE.insert(insertMessage);
-
-		TXN_SERVICE.commit(txId);
-	}
-	public static void insertPVToDb(String guid, List<Float> points){
-		initializePolyVolumeSchema();
-		initializePolyVolumeEntitites();
-
-		/* Start a transaction per INSERT. */
-		final CottontailGrpc.TransactionId txId = TXN_SERVICE.begin(Empty.getDefaultInstance());
-
-
-		/* prepare for insert */
-		final CottontailGrpc.FloatVector.Builder vector = CottontailGrpc.FloatVector.newBuilder();
-		vector.addAllVector(points);
-		final CottontailGrpc.Literal id = CottontailGrpc.Literal.newBuilder().setStringData(guid).build();
-		final CottontailGrpc.Literal pvec = CottontailGrpc.Literal.newBuilder().setVectorData(CottontailGrpc.Vector.newBuilder().setFloatVector(vector)).build();
-
-		/* do insert */
-
-		/* Prepare INSERT message. */
-		final CottontailGrpc.InsertMessage insertMessage = CottontailGrpc.InsertMessage.newBuilder()
-				.setTxId(txId)
-				.setFrom(CottontailGrpc.From.newBuilder().setScan(CottontailGrpc.Scan.newBuilder().setEntity(CottontailGrpc.EntityName.newBuilder().setName("PV").setSchema(CottontailGrpc.SchemaName.newBuilder().setName("PV"))))) /* Entity the data should be inserted into. */
-				.addElements(CottontailGrpc.InsertMessage.InsertElement.newBuilder().setColumn(CottontailGrpc.ColumnName.newBuilder().setName("id")).setValue(id).build())
-				.addElements(CottontailGrpc.InsertMessage.InsertElement.newBuilder().setColumn(CottontailGrpc.ColumnName.newBuilder().setName("features")).setValue(pvec).build())
-				.build();
-
-		/* Send INSERT message. */
-		DML_SERVICE.insert(insertMessage);
-
-		TXN_SERVICE.commit(txId);
-	}
-	public static void insertToDb(String guid, int frame, int regionId, List<Float> points){
-		//initializePolyEntitites();
-
-		/* Start a transaction per INSERT. */
-		final CottontailGrpc.TransactionId txId = TXN_SERVICE.begin(Empty.getDefaultInstance());
-
-
-		/* prepare for insert */
-		final CottontailGrpc.FloatVector.Builder vector = CottontailGrpc.FloatVector.newBuilder();
-		vector.addAllVector(points);
-		final CottontailGrpc.Literal id = CottontailGrpc.Literal.newBuilder().setStringData(guid).build();
-		final CottontailGrpc.Literal fn = CottontailGrpc.Literal.newBuilder().setIntData(frame).build();
-		final CottontailGrpc.Literal reg = CottontailGrpc.Literal.newBuilder().setIntData(regionId).build();
-		final CottontailGrpc.Literal pvec = CottontailGrpc.Literal.newBuilder().setVectorData(CottontailGrpc.Vector.newBuilder().setFloatVector(vector)).build();
-
-		/* do insert */
-
-		/* Prepare INSERT message. */
-		final CottontailGrpc.InsertMessage insertMessage = CottontailGrpc.InsertMessage.newBuilder()
-				.setTxId(txId)
-				.setFrom(CottontailGrpc.From.newBuilder().setScan(CottontailGrpc.Scan.newBuilder().setEntity(CottontailGrpc.EntityName.newBuilder().setName("poly").setSchema(CottontailGrpc.SchemaName.newBuilder().setName(SCHEMA_NAME))))) /* Entity the data should be inserted into. */
-				.addElements(CottontailGrpc.InsertMessage.InsertElement.newBuilder().setColumn(CottontailGrpc.ColumnName.newBuilder().setName("id")).setValue(id).build())
-				.addElements(CottontailGrpc.InsertMessage.InsertElement.newBuilder().setColumn(CottontailGrpc.ColumnName.newBuilder().setName("frame")).setValue(fn).build())
-				.addElements(CottontailGrpc.InsertMessage.InsertElement.newBuilder().setColumn(CottontailGrpc.ColumnName.newBuilder().setName("region")).setValue(reg).build())
-				.addElements(CottontailGrpc.InsertMessage.InsertElement.newBuilder().setColumn(CottontailGrpc.ColumnName.newBuilder().setName("points")).setValue(pvec).build())
-				.build();
-
-		/* Send INSERT message. */
-		DML_SERVICE.insert(insertMessage);
-
-		TXN_SERVICE.commit(txId);
-	}
-
-	public static String polyDataToString(List<Quartet<String, Integer, Integer, List<Float>>> polyData){
-		StringBuilder sb = new StringBuilder();
-		sb.append("----- POLYGON -----" + "\n");
-		for(Quartet<String, Integer, Integer, List<Float>> q : polyData){
-			sb.append("id: " + q.getValue0() + "\n");
-			sb.append("frame: " + q.getValue1() + "\n");
-			sb.append("region idx: " + q.getValue2() + "\n");
-			String list = "Points:";
-			for(int i = 0; i<q.getValue3().size(); ++i){
-				list += " " + q.getValue3().get(i).toString();
-			}
-			sb.append(list + "\n");
-
-			sb.append("----- END POLYGON -----" + "\n");
-		}
-
-		return sb.toString();
-	}
 }
 
