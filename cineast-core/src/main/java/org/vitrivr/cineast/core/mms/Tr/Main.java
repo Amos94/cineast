@@ -280,7 +280,7 @@ public class Main {
 		//dbHelper.initializePolyVolumeEntitites();
 		Vector<Float> polyvol_features = new Vector<>(Collections.<Float>nCopies(1000000, (float)-1));
 		for(int ind=0; ind<poly_volume.size(); ++ind)
-			rect_features.set(ind, poly_volume.get(ind));
+			polyvol_features.set(ind, poly_volume.get(ind));
 
 		//dbHelper.insertPVToDb(id, polyvol_features);
 		/**
@@ -290,7 +290,8 @@ public class Main {
 		//perform KNN on vectors
 		final CottontailGrpc.FloatVector.Builder poly_vol_vector = CottontailGrpc.FloatVector.newBuilder();
 		poly_vol_vector.addAllVector(polyvol_features);
-		dbHelper.executeNearestNeighborQuery("af21e2eb-aaba-4528-b259-50c7c07fe68a",poly_vol_vector,"PV", "PV");
+		dbHelper.executeNearestNeighborQuery("f584156d-0f56-47ec-a6d1-00ecb6680481",poly_vol_vector,"PV", "PV");
+
 	}
 
 	// background substractionMOG2
