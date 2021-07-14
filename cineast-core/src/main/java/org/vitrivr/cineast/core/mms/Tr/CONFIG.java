@@ -7,6 +7,9 @@ import java.awt.*;
 public class CONFIG {
 
 	public static boolean IS_DEVELOPMENT = false;
+	public static boolean PERFORM_EVALUATION = false;
+	public static boolean DISPLAY_FRAMES = false;
+	public static boolean INITIALIZE_SCHEMA = true;
 	public static boolean DO_POLY_OPERATIONS = false; //in order to know how to serialize the data
 
 	public static String filename = "C:\\Dev\\fork\\cineast\\cineast-core\\src\\main\\java\\org\\vitrivr\\cineast\\core\\mms\\Data\\atrium.avi";

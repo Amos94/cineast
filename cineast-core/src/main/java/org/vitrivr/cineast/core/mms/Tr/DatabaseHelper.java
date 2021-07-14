@@ -96,6 +96,7 @@ public class DatabaseHelper {
 		final CottontailGrpc.EntityDefinition definition = CottontailGrpc.EntityDefinition.newBuilder()
 				.setEntity(CottontailGrpc.EntityName.newBuilder().setName("BB").setSchema(CottontailGrpc.SchemaName.newBuilder().setName("BB"))) /* Name of entity and schema it belongs to. */
 				.addColumns(CottontailGrpc.ColumnDefinition.newBuilder().setType(CottontailGrpc.Type.STRING).setName("id").setEngine(CottontailGrpc.Engine.MAPDB).setNullable(false)) /* 1st column: id (String) */
+				.addColumns(CottontailGrpc.ColumnDefinition.newBuilder().setType(CottontailGrpc.Type.STRING).setName("filename").setEngine(CottontailGrpc.Engine.MAPDB).setNullable(false)) /* 1st column: id (String) */
 				.addColumns(CottontailGrpc.ColumnDefinition.newBuilder().setType(CottontailGrpc.Type.FLOAT_VEC).setName("features").setEngine(CottontailGrpc.Engine.MAPDB).setNullable(false).setLength(1000000))  /* 4th column poly vector*/
 				.build();
 
@@ -132,6 +133,7 @@ public class DatabaseHelper {
 		final CottontailGrpc.EntityDefinition definition = CottontailGrpc.EntityDefinition.newBuilder()
 				.setEntity(CottontailGrpc.EntityName.newBuilder().setName("PV").setSchema(CottontailGrpc.SchemaName.newBuilder().setName("PV"))) /* Name of entity and schema it belongs to. */
 				.addColumns(CottontailGrpc.ColumnDefinition.newBuilder().setType(CottontailGrpc.Type.STRING).setName("id").setEngine(CottontailGrpc.Engine.MAPDB).setNullable(false)) /* 1st column: id (String) */
+				.addColumns(CottontailGrpc.ColumnDefinition.newBuilder().setType(CottontailGrpc.Type.STRING).setName("filename").setEngine(CottontailGrpc.Engine.MAPDB).setNullable(false)) /* 1st column: id (String) */
 				.addColumns(CottontailGrpc.ColumnDefinition.newBuilder().setType(CottontailGrpc.Type.FLOAT_VEC).setName("features").setEngine(CottontailGrpc.Engine.MAPDB).setNullable(false).setLength(1000000))  /* 4th column poly vector*/
 				.build();
 
@@ -143,7 +145,7 @@ public class DatabaseHelper {
 
 
 	/** Name of the Cottontail DB Schema and dimension of its vector column. */
-	public static void insertBBToDb(String guid, List<Float> points){
+	public static void insertBBToDb(String guid, String fname, List<Float> points){
 		//initializeBBSchema();
 		//initializeBBEntitites();
 
@@ -155,6 +157,7 @@ public class DatabaseHelper {
 		final CottontailGrpc.FloatVector.Builder vector = CottontailGrpc.FloatVector.newBuilder();
 		vector.addAllVector(points);
 		final CottontailGrpc.Literal id = CottontailGrpc.Literal.newBuilder().setStringData(guid).build();
+		final CottontailGrpc.Literal filename = CottontailGrpc.Literal.newBuilder().setStringData(fname).build();
 		final CottontailGrpc.Literal pvec = CottontailGrpc.Literal.newBuilder().setVectorData(CottontailGrpc.Vector.newBuilder().setFloatVector(vector)).build();
 
 		/* do insert */
@@ -164,6 +167,7 @@ public class DatabaseHelper {
 				.setTxId(txId)
 				.setFrom(CottontailGrpc.From.newBuilder().setScan(CottontailGrpc.Scan.newBuilder().setEntity(CottontailGrpc.EntityName.newBuilder().setName("BB").setSchema(CottontailGrpc.SchemaName.newBuilder().setName("BB"))))) /* Entity the data should be inserted into. */
 				.addElements(CottontailGrpc.InsertMessage.InsertElement.newBuilder().setColumn(CottontailGrpc.ColumnName.newBuilder().setName("id")).setValue(id).build())
+				.addElements(CottontailGrpc.InsertMessage.InsertElement.newBuilder().setColumn(CottontailGrpc.ColumnName.newBuilder().setName("filename")).setValue(filename).build())
 				.addElements(CottontailGrpc.InsertMessage.InsertElement.newBuilder().setColumn(CottontailGrpc.ColumnName.newBuilder().setName("features")).setValue(pvec).build())
 				.build();
 
@@ -172,7 +176,7 @@ public class DatabaseHelper {
 
 		TXN_SERVICE.commit(txId);
 	}
-	public static void insertPVToDb(String guid, List<Float> points){
+	public static void insertPVToDb(String guid, String fname, List<Float> points){
 		//initializePolyVolumeSchema();
 		//initializePolyVolumeEntitites();
 
@@ -184,6 +188,7 @@ public class DatabaseHelper {
 		final CottontailGrpc.FloatVector.Builder vector = CottontailGrpc.FloatVector.newBuilder();
 		vector.addAllVector(points);
 		final CottontailGrpc.Literal id = CottontailGrpc.Literal.newBuilder().setStringData(guid).build();
+		final CottontailGrpc.Literal filename = CottontailGrpc.Literal.newBuilder().setStringData(fname).build();
 		final CottontailGrpc.Literal pvec = CottontailGrpc.Literal.newBuilder().setVectorData(CottontailGrpc.Vector.newBuilder().setFloatVector(vector)).build();
 
 		/* do insert */
@@ -193,6 +198,7 @@ public class DatabaseHelper {
 				.setTxId(txId)
 				.setFrom(CottontailGrpc.From.newBuilder().setScan(CottontailGrpc.Scan.newBuilder().setEntity(CottontailGrpc.EntityName.newBuilder().setName("PV").setSchema(CottontailGrpc.SchemaName.newBuilder().setName("PV"))))) /* Entity the data should be inserted into. */
 				.addElements(CottontailGrpc.InsertMessage.InsertElement.newBuilder().setColumn(CottontailGrpc.ColumnName.newBuilder().setName("id")).setValue(id).build())
+				.addElements(CottontailGrpc.InsertMessage.InsertElement.newBuilder().setColumn(CottontailGrpc.ColumnName.newBuilder().setName("filename")).setValue(filename).build())
 				.addElements(CottontailGrpc.InsertMessage.InsertElement.newBuilder().setColumn(CottontailGrpc.ColumnName.newBuilder().setName("features")).setValue(pvec).build())
 				.build();
 
@@ -263,11 +269,19 @@ public class DatabaseHelper {
 						CottontailGrpc.Scan.newBuilder().setEntity(CottontailGrpc.EntityName.newBuilder().setName(entityName).setSchema(CottontailGrpc.SchemaName.newBuilder().setName(schemaName)))).build() /* Entity to select data from. */
 				)
 						.setKnn(CottontailGrpc.Knn.newBuilder().setK(k).setAttribute(CottontailGrpc.ColumnName.newBuilder().setName("features")).setDistance(CottontailGrpc.Knn.Distance.COSINE).setQuery(CottontailGrpc.Vector.newBuilder().setFloatVector(vector))) /* kNN predicate on the column 'feature' with k = 10 and cosine distance. */
-						.setProjection(CottontailGrpc.Projection.newBuilder().addColumns(
+						.setProjection(CottontailGrpc.Projection.newBuilder()
+								.addColumns(
 								CottontailGrpc.Projection.ProjectionElement.newBuilder().setColumn(CottontailGrpc.ColumnName.newBuilder().setName("id")) /* Star projection. */
-						).addColumns(
+
+								)
+								.addColumns(
+										CottontailGrpc.Projection.ProjectionElement.newBuilder().setColumn(CottontailGrpc.ColumnName.newBuilder().setName("filename")) /* Star projection. */
+
+								)
+								.addColumns(
 								CottontailGrpc.Projection.ProjectionElement.newBuilder().setColumn(CottontailGrpc.ColumnName.newBuilder().setName("distance")) /* Star projection. */
-						))
+
+								))
 		).build();
 
 		/* Execute query. */

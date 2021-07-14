@@ -23,8 +23,13 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.opencv.imgcodecs.Imgcodecs.imwrite;
 import static org.vitrivr.cineast.core.mms.Algorithms.Polygons.Algos.helpers.PolyBoolHelper.point;
@@ -63,235 +68,262 @@ public class Main {
 	private static Vector<Float> poly_volume;
 	private static DatabaseHelper dbHelper;
 
-	public static void main(String[] args) throws InterruptedException {
+	public static void main(String[] args) throws InterruptedException, IOException {
 		dbHelper = new DatabaseHelper();
 		if (args.length>0){
 			CONFIG.filename = args[0];
 		}
 
-		rect_volume = new Vector<Float>();
-		poly_volume = new Vector<Float>();
 
-		JFrame jFrame = new JFrame("MULTIPLE-TARGET TRACKING");
-		jFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+
 		JLabel vidpanel = new JLabel();
-		jFrame.setContentPane(vidpanel);
-		jFrame.setSize(CONFIG.FRAME_WIDTH, CONFIG.FRAME_HEIGHT);
-		jFrame.setLocation((3 / 4)
-				* Toolkit.getDefaultToolkit().getScreenSize().width, (3 / 4)
-				* Toolkit.getDefaultToolkit().getScreenSize().height);
-		jFrame.setVisible(true);
-
-		// ////////////////////////////////////////////////////////
-		JFrame jFrame2 = new JFrame("BACKGROUND SUBSTRACTION");
-		jFrame2.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		JLabel vidpanel2 = new JLabel();
-		jFrame2.setContentPane(vidpanel2);
-		jFrame2.setSize(CONFIG.FRAME_WIDTH, CONFIG.FRAME_HEIGHT);
-		jFrame2.setLocation(
-				Toolkit.getDefaultToolkit().getScreenSize().width / 2, (3 / 4)
-						* Toolkit.getDefaultToolkit().getScreenSize().height);
-		jFrame2.setVisible(true);
-		// ////////////////////////////////////////////////////////
-
-		// ////////////////////////////////////////////////////////
-		JFrame jFrame3 = new JFrame("VIDEO INPUT");
-		jFrame3.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		JLabel vidpanel3 = new JLabel();
-		jFrame3.setContentPane(vidpanel3);
-		jFrame3.setSize(CONFIG.FRAME_WIDTH, CONFIG.FRAME_HEIGHT);
-		jFrame3.setLocation((3 / 4)
-				* Toolkit.getDefaultToolkit().getScreenSize().width, Toolkit
-				.getDefaultToolkit().getScreenSize().height / 2);
-		jFrame3.setVisible(false);
-		// ////////////////////////////////////////////////////////
-
-		// ////////////////////////////////////////////////////////
-		JFrame jFrame4 = new JFrame("KALMAN FILTER");
-		jFrame4.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		JLabel vidpanel4 = new JLabel();
-		jFrame4.setContentPane(vidpanel4);
-		jFrame4.setSize(CONFIG.FRAME_WIDTH, CONFIG.FRAME_HEIGHT);
-		jFrame4.setLocation(
-				Toolkit.getDefaultToolkit().getScreenSize().width / 2, Toolkit
-						.getDefaultToolkit().getScreenSize().height / 2);
-		jFrame4.setVisible(false);
-		// ////////////////////////////////////////////////////////
 
-		Mat frame = new Mat();
-		Mat outbox = new Mat();
-		Mat diffFrame = null;
-		Vector<Rect> array = new Vector<Rect>();
+		if(CONFIG.DISPLAY_FRAMES) {
+			JFrame jFrame = new JFrame("MULTIPLE-TARGET TRACKING");
+			jFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+			jFrame.setContentPane(vidpanel);
+			jFrame.setSize(CONFIG.FRAME_WIDTH, CONFIG.FRAME_HEIGHT);
+			jFrame.setLocation((3 / 4)
+					* Toolkit.getDefaultToolkit().getScreenSize().width, (3 / 4)
+					* Toolkit.getDefaultToolkit().getScreenSize().height);
+			jFrame.setVisible(true);
 
-		BackgroundSubtractorMOG2 mBGSub = Video
-				.createBackgroundSubtractorMOG2();
+			// ////////////////////////////////////////////////////////
+			JFrame jFrame2 = new JFrame("BACKGROUND SUBSTRACTION");
+			jFrame2.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+			jFrame2.setContentPane(vidpanel2);
+			jFrame2.setSize(CONFIG.FRAME_WIDTH, CONFIG.FRAME_HEIGHT);
+			jFrame2.setLocation(
+					Toolkit.getDefaultToolkit().getScreenSize().width / 2, (3 / 4)
+							* Toolkit.getDefaultToolkit().getScreenSize().height);
+			jFrame2.setVisible(true);
+			// ////////////////////////////////////////////////////////
 
-		tracker = new Tracker((float) CONFIG._dt,
-				(float) CONFIG._Accel_noise_mag, CONFIG._dist_thres,
-				CONFIG._maximum_allowed_skipped_frames,
-				CONFIG._max_trace_length);
+			// ////////////////////////////////////////////////////////
+			JFrame jFrame3 = new JFrame("VIDEO INPUT");
+			jFrame3.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+			jFrame3.setContentPane(vidpanel3);
+			jFrame3.setSize(CONFIG.FRAME_WIDTH, CONFIG.FRAME_HEIGHT);
+			jFrame3.setLocation((3 / 4)
+					* Toolkit.getDefaultToolkit().getScreenSize().width, Toolkit
+					.getDefaultToolkit().getScreenSize().height / 2);
+			jFrame3.setVisible(false);
+			// ////////////////////////////////////////////////////////
 
-		// Thread.sleep(1000);
-		VideoCapture camera = new VideoCapture();
-		camera.open(CONFIG.filename);
-		// VideoCapture camera = new VideoCapture(0);
-		int i = 0;
-
-		if (!camera.isOpened()) {
-			System.out.print("Can not open Camera, try it later.");
-			return;
+			// ////////////////////////////////////////////////////////
+			JFrame jFrame4 = new JFrame("KALMAN FILTER");
+			jFrame4.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+			jFrame4.setContentPane(vidpanel4);
+			jFrame4.setSize(CONFIG.FRAME_WIDTH, CONFIG.FRAME_HEIGHT);
+			jFrame4.setLocation(
+					Toolkit.getDefaultToolkit().getScreenSize().width / 2, Toolkit
+							.getDefaultToolkit().getScreenSize().height / 2);
+			jFrame4.setVisible(false);
+			// ////////////////////////////////////////////////////////
 		}
-		int idx = 0;
-		int index = 0;
-		int frameNumber = 0;
-		while (true) {
-			if (!camera.read(frame))
-				break;
-			Imgproc.resize(frame, frame, new Size(CONFIG.FRAME_WIDTH, CONFIG.FRAME_HEIGHT),
-					0., 0., Imgproc.INTER_LINEAR);
-			imag = frame.clone();
-			orgin = frame.clone();
-			kalman = frame.clone();
-			if (i == 0) {
-				// jFrame.setSize(FRAME_WIDTH, FRAME_HEIGHT);
-				diffFrame = new Mat(outbox.size(), CvType.CV_8UC1);
-				diffFrame = outbox.clone();
+
+		List<Path> files = new ArrayList<Path>();
+		Stream<Path> davis = Files.walk(Paths.get("C:/Dev/fork/cineast/cineast-core/src/main/java/org/vitrivr/cineast/core/mms/Data/Davis/"));
+		files.addAll(davis.filter(Files::isRegularFile).collect(Collectors.toList()));
+
+		Stream<Path> yt = Files.walk(Paths.get("C:/Dev/fork/cineast/cineast-core/src/main/java/org/vitrivr/cineast/core/mms/Data/YT-VOS/"));
+		files.addAll(yt.filter(Files::isRegularFile).collect(Collectors.toList()));
+
+		for(int fidx=0; fidx<files.size(); ++fidx) {
+			String[] fpath = files.get(fidx).toString().split("\\\\");
+			Collections.reverse(Arrays.asList(fpath));
+			String fileName = fpath[0];
+			System.out.println(">>> PROCESSING: " + fileName);
+			rect_volume = new Vector<Float>();
+			poly_volume = new Vector<Float>();
+			Mat frame = new Mat();
+			Mat outbox = new Mat();
+			Mat diffFrame = null;
+			Vector<Rect> array = new Vector<Rect>();
+
+			BackgroundSubtractorMOG2 mBGSub = Video
+					.createBackgroundSubtractorMOG2();
+
+			tracker = new Tracker((float) CONFIG._dt,
+					(float) CONFIG._Accel_noise_mag, CONFIG._dist_thres,
+					CONFIG._maximum_allowed_skipped_frames,
+					CONFIG._max_trace_length);
+
+			// Thread.sleep(1000);
+			VideoCapture camera = new VideoCapture();
+			//camera.open(CONFIG.filename);
+			camera.open(files.get(fidx).toString());
+			// VideoCapture camera = new VideoCapture(0);
+			int i = 0;
+
+			if (!camera.isOpened()) {
+				System.out.print("Can not open Camera, try it later.");
+				return;
 			}
-
-			if (i == 1) {
-				diffFrame = new Mat(frame.size(), CvType.CV_8UC1);
-				processFrame(camera, frame, diffFrame, mBGSub);
-				frame = diffFrame.clone();
-
-				array = detectContours(diffFrame, index, frameNumber);
-				++index;
-				// ///////
-				Vector<Point> detections = new Vector<>();
-				// detections.clear();
-				Iterator<Rect> it = array.iterator();
-				while (it.hasNext()) {
-					Rect obj = it.next();
-
-					int ObjectCenterX = (int) ((obj.tl().x + obj.br().x) / 2);
-					int ObjectCenterY = (int) ((obj.tl().y + obj.br().y) / 2);
-
-					Point pt = new Point(ObjectCenterX, ObjectCenterY);
-					detections.add(pt);
+			int idx = 0;
+			int index = 0;
+			int frameNumber = 0;
+			while (true) {
+				if (!camera.read(frame))
+					break;
+				Imgproc.resize(frame, frame, new Size(CONFIG.FRAME_WIDTH, CONFIG.FRAME_HEIGHT),
+						0., 0., Imgproc.INTER_LINEAR);
+				imag = frame.clone();
+				orgin = frame.clone();
+				kalman = frame.clone();
+				if (i == 0) {
+					// jFrame.setSize(FRAME_WIDTH, FRAME_HEIGHT);
+					diffFrame = new Mat(outbox.size(), CvType.CV_8UC1);
+					diffFrame = outbox.clone();
 				}
-				// ///////
 
-				if (array.size() > 0) {
-					tracker.update(array, detections, imag);
-					Iterator<Rect> it3 = array.iterator();
-					while (it3.hasNext()) {
-						Rect obj = it3.next();
+				if (i == 1) {
+					diffFrame = new Mat(frame.size(), CvType.CV_8UC1);
+					processFrame(camera, frame, diffFrame, mBGSub);
+					frame = diffFrame.clone();
 
-						if(IS_DEVELOPMENT) {
-							int ObjectCenterX = (int) ((obj.tl().x + obj.br().x) / 2);
-							int ObjectCenterY = (int) ((obj.tl().y + obj.br().y) / 2);
+					array = detectContours(diffFrame, index, frameNumber);
+					++index;
+					// ///////
+					Vector<Point> detections = new Vector<>();
+					// detections.clear();
+					Iterator<Rect> it = array.iterator();
+					while (it.hasNext()) {
+						Rect obj = it.next();
 
-							Point pt = new Point(ObjectCenterX, ObjectCenterY);
-							//THE GRABCUT GIVEN THE RECTANGLES
-							GC gc = new GC();
-							gc.setBackGroundOriginX((int) obj.tl().x);
-							gc.setBackGroundOriginY((int) obj.tl().y);
-							gc.setWidth((int) (obj.br().x + obj.tl().x));
-							gc.setHeight((int) (obj.br().y + obj.tl().y));
-							Mat result = gc.process(imag);
-							final String targetFile = "C:\\Dev\\fork\\cineast\\cineast-core\\src\\main\\java\\org\\vitrivr\\cineast\\core\\mms\\Data\\graphcutdata\\current-gc" + idx + ".jpg";
-							if (!result.empty())
-								imwrite(targetFile, result);
-							else
-								System.out.println("empty");
+						int ObjectCenterX = (int) ((obj.tl().x + obj.br().x) / 2);
+						int ObjectCenterY = (int) ((obj.tl().y + obj.br().y) / 2);
 
-							Imgproc.rectangle(imag, obj.br(), obj.tl(), new Scalar(
-									0, 255, 0), 2);
-							Imgproc.circle(imag, pt, 1, new Scalar(0, 0, 255), 2);
-						}
-						++idx;
+						Point pt = new Point(ObjectCenterX, ObjectCenterY);
+						detections.add(pt);
 					}
-				} else if (array.size() == 0) {
-					tracker.updateKalman(imag, detections);
-				}
+					// ///////
 
-				if(IS_DEVELOPMENT) {
-					for (int k = 0; k < tracker.tracks.size(); k++) {
-						int traceNum = tracker.tracks.get(k).trace.size();
-						if (traceNum > 1) {
-							for (int jt = 1; jt < tracker.tracks.get(k).trace
-									.size(); jt++) {
-								Imgproc.line(imag,
-										tracker.tracks.get(k).trace.get(jt - 1),
-										tracker.tracks.get(k).trace.get(jt),
-										CONFIG.Colors[tracker.tracks.get(k).track_id % 9],
-										2, 4, 0);
+					if (array.size() > 0) {
+						tracker.update(array, detections, imag);
+						Iterator<Rect> it3 = array.iterator();
+						while (it3.hasNext()) {
+							Rect obj = it3.next();
+
+							if (IS_DEVELOPMENT) {
+								int ObjectCenterX = (int) ((obj.tl().x + obj.br().x) / 2);
+								int ObjectCenterY = (int) ((obj.tl().y + obj.br().y) / 2);
+
+								Point pt = new Point(ObjectCenterX, ObjectCenterY);
+								//THE GRABCUT GIVEN THE RECTANGLES
+								GC gc = new GC();
+								gc.setBackGroundOriginX((int) obj.tl().x);
+								gc.setBackGroundOriginY((int) obj.tl().y);
+								gc.setWidth((int) (obj.br().x + obj.tl().x));
+								gc.setHeight((int) (obj.br().y + obj.tl().y));
+								Mat result = gc.process(imag);
+								final String targetFile = "C:\\Dev\\fork\\cineast\\cineast-core\\src\\main\\java\\org\\vitrivr\\cineast\\core\\mms\\Data\\graphcutdata\\current-gc" + idx + ".jpg";
+								if (!result.empty())
+									imwrite(targetFile, result);
+								else
+									System.out.println("empty");
+
+								Imgproc.rectangle(imag, obj.br(), obj.tl(), new Scalar(
+										0, 255, 0), 2);
+								Imgproc.circle(imag, pt, 1, new Scalar(0, 0, 255), 2);
+							}
+							++idx;
+						}
+					} else if (array.size() == 0) {
+						tracker.updateKalman(imag, detections);
+					}
+
+					if (IS_DEVELOPMENT) {
+						for (int k = 0; k < tracker.tracks.size(); k++) {
+							int traceNum = tracker.tracks.get(k).trace.size();
+							if (traceNum > 1) {
+								for (int jt = 1; jt < tracker.tracks.get(k).trace
+										.size(); jt++) {
+									Imgproc.line(imag,
+											tracker.tracks.get(k).trace.get(jt - 1),
+											tracker.tracks.get(k).trace.get(jt),
+											CONFIG.Colors[tracker.tracks.get(k).track_id % 9],
+											2, 4, 0);
+								}
 							}
 						}
 					}
 				}
+
+				i = 1;
+
+				if (CONFIG.DISPLAY_FRAMES) {
+					ImageIcon image = new ImageIcon(Mat2bufferedImage(imag));
+					vidpanel.setIcon(image);
+					vidpanel.repaint();
+					// temponFrame = outerBox.clone();
+
+					ImageIcon image2 = new ImageIcon(Mat2bufferedImage(frame));
+					vidpanel2.setIcon(image2);
+					vidpanel2.repaint();
+
+					ImageIcon image3 = new ImageIcon(Mat2bufferedImage(orgin));
+					vidpanel3.setIcon(image3);
+					vidpanel3.repaint();
+
+					ImageIcon image4 = new ImageIcon(Mat2bufferedImage(kalman));
+					vidpanel4.setIcon(image4);
+					vidpanel4.repaint();
+				}
+
+				++frameNumber;
+
+				if (!IS_DEVELOPMENT)
+					if (rect_volume.size() >= 1000)
+						break;
 			}
 
-			i = 1;
+			/**
+			 * BB volume insert
+			 */
+			if(fidx == 0 && CONFIG.INITIALIZE_SCHEMA) {
+				dbHelper.initializeBBSchema();
+				dbHelper.initializeBBEntitites();
+			}
+			Vector<Float> rect_features = new Vector<>(Collections.<Float>nCopies(1000000, (float) -1));
+			for (int ind = 0; ind < rect_volume.size(); ++ind)
+				rect_features.set(ind, rect_volume.get(ind));
+			String id = UUID.randomUUID().toString();
 
-			ImageIcon image = new ImageIcon(Mat2bufferedImage(imag));
-			vidpanel.setIcon(image);
-			vidpanel.repaint();
-			// temponFrame = outerBox.clone();
+			dbHelper.insertBBToDb(id, fileName, rect_features);
+			/**
+			 * BB volume insert END
+			 */
 
-			ImageIcon image2 = new ImageIcon(Mat2bufferedImage(frame));
-			vidpanel2.setIcon(image2);
-			vidpanel2.repaint();
 
-			ImageIcon image3 = new ImageIcon(Mat2bufferedImage(orgin));
-			vidpanel3.setIcon(image3);
-			vidpanel3.repaint();
+			/**
+			 * Poly volume insert
+			 */
+			if(fidx == 0 && CONFIG.INITIALIZE_SCHEMA) {
+				dbHelper.initializePolyVolumeSchema();
+				dbHelper.initializePolyVolumeEntitites();
+			}
+			Vector<Float> polyvol_features = new Vector<>(Collections.<Float>nCopies(1000000, (float) -1));
+			for (int ind = 0; ind < poly_volume.size(); ++ind)
+				polyvol_features.set(ind, poly_volume.get(ind));
 
-			ImageIcon image4 = new ImageIcon(Mat2bufferedImage(kalman));
-			vidpanel4.setIcon(image4);
-			vidpanel4.repaint();
+			dbHelper.insertPVToDb(id, fileName, polyvol_features);
+			/**
+			 * Poly volume insert END
+			 */
 
-			++frameNumber;
-
-			if(!IS_DEVELOPMENT)
-				if(rect_volume.size() >= 1000)
-					break;
+			//perform KNN on vectors
+			if(CONFIG.PERFORM_EVALUATION) {
+				final CottontailGrpc.FloatVector.Builder poly_vol_vector = CottontailGrpc.FloatVector.newBuilder();
+				poly_vol_vector.addAllVector(polyvol_features);
+				System.out.println("Current file: " + fileName);
+				dbHelper.executeNearestNeighborQuery(poly_vol_vector, "PV", "PV");
+			}
 		}
-
-		/**
-		 * BB volume insert
-		 */
-		//dbHelper.initializeBBSchema();
-		//dbHelper.initializeBBEntitites();
-		Vector<Float> rect_features = new Vector<>(Collections.<Float>nCopies(1000000, (float)-1));
-		for(int ind=0; ind<rect_volume.size(); ++ind)
-			rect_features.set(ind, rect_volume.get(ind));
-		String id = UUID.randomUUID().toString();
-
-		//dbHelper.insertBBToDb(id, rect_features);
-		/**
-		 * BB volume insert END
-		 */
-
-
-		/**
-		 * Poly volume insert
-		 */
-		//dbHelper.initializePolyVolumeSchema();
-		//dbHelper.initializePolyVolumeEntitites();
-		Vector<Float> polyvol_features = new Vector<>(Collections.<Float>nCopies(1000000, (float)-1));
-		for(int ind=0; ind<poly_volume.size(); ++ind)
-			polyvol_features.set(ind, poly_volume.get(ind));
-
-		//dbHelper.insertPVToDb(id, polyvol_features);
-		/**
-		 * Poly volume insert END
-		 */
-
-		//perform KNN on vectors
-		final CottontailGrpc.FloatVector.Builder poly_vol_vector = CottontailGrpc.FloatVector.newBuilder();
-		poly_vol_vector.addAllVector(polyvol_features);
-		dbHelper.executeNearestNeighborQuery(poly_vol_vector,"PV", "PV");
-
+		System.out.println("============================ END ============================");
 	}
 
 	// background substractionMOG2
@@ -429,6 +461,7 @@ public class Main {
 				 * */
 				if(CONFIG.DO_POLY_OPERATIONS)
 					poly_volume.add((float)Integer.MIN_VALUE);
+
 				poly_volume.add((float)frameNumber);
 				poly_volume.add((float)index);
 				for(org.vitrivr.cineast.core.mms.Helper.Point p : simplifiedPolygon){
@@ -447,6 +480,7 @@ public class Main {
 				//start new volume by adding min value
 				if(CONFIG.DO_POLY_OPERATIONS)
 					rect_volume.add((float)Integer.MIN_VALUE);
+
 				rect_volume.add((float)frameNumber);
 				rect_volume.add((float)index);
 
