@@ -255,7 +255,7 @@ public class DatabaseHelper {
 
 	public static void  executeNearestNeighborQuery(CottontailGrpc.FloatVector.Builder vector, String entityName, String schemaName)  {
 		/* Number of entries to return. */
-		final int k = 1;
+		final int k = 5;
 
 			/* Prepare kNN query vector. */
 		final CottontailGrpc.QueryMessage query = CottontailGrpc.QueryMessage.newBuilder().setQuery(

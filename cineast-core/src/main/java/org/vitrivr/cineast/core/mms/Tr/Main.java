@@ -427,8 +427,8 @@ public class Main {
 				/**
 				 * POLYGON VOLUME BELOW (DB)
 				 * */
-
-				poly_volume.add((float)Integer.MIN_VALUE);
+				if(CONFIG.DO_POLY_OPERATIONS)
+					poly_volume.add((float)Integer.MIN_VALUE);
 				poly_volume.add((float)frameNumber);
 				poly_volume.add((float)index);
 				for(org.vitrivr.cineast.core.mms.Helper.Point p : simplifiedPolygon){
@@ -445,7 +445,8 @@ public class Main {
 				 * BB VOLUME BELOW (DB)
 				 * */
 				//start new volume by adding min value
-				rect_volume.add((float)Integer.MIN_VALUE);
+				if(CONFIG.DO_POLY_OPERATIONS)
+					rect_volume.add((float)Integer.MIN_VALUE);
 				rect_volume.add((float)frameNumber);
 				rect_volume.add((float)index);
 
