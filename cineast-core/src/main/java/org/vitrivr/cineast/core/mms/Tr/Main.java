@@ -21,11 +21,13 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.List;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -132,11 +134,52 @@ public class Main {
 		Stream<Path> yt = Files.walk(Paths.get("C:/Dev/fork/cineast/cineast-core/src/main/java/org/vitrivr/cineast/core/mms/Data/YT-VOS/"));
 		files.addAll(yt.filter(Files::isRegularFile).collect(Collectors.toList()));
 
+		if(CONFIG.DB_INSERT) {
+			List<String> processedFiles = new ArrayList<>();
+			try (Stream<String> stream = Files.lines(Paths.get("C:/Dev/fork/cineast/cineast-core/src/main/java/org/vitrivr/cineast/core/mms/Data/status.txt"))) {
+				List<String> strs = stream.collect(Collectors.toList());
+				for (int i = 0; i < strs.size(); ++i) {
+					String fn = strs.get(i).split(" ")[1];
+					processedFiles.add(fn);
+				}
+			}
+			for (int fidx = 0; fidx < files.size(); ++fidx) {
+				for (int pf = 0; pf < processedFiles.size(); ++pf)
+					if (files.get(fidx).toString().contains(processedFiles.get(pf)))
+						files.remove(fidx);
+			}
+		}
+
+		if(CONFIG.PERFORM_EVALUATION) {
+			List<String> processedFiles = new ArrayList<>();
+			try (Stream<String> stream = Files.lines(Paths.get("C:/Dev/fork/cineast/cineast-core/src/main/java/org/vitrivr/cineast/core/mms/Data/status.txt"))) {
+				List<String> strs = stream.collect(Collectors.toList());
+				for (int i = 0; i < strs.size(); ++i) {
+					String fn = strs.get(i).split(" ")[1];
+					processedFiles.add(fn);
+				}
+			}
+			List<Path> temp = new ArrayList<>();
+			for (int fidx = 0; fidx < files.size(); ++fidx) {
+				for (int pf = 0; pf < processedFiles.size(); ++pf)
+					if (files.get(fidx).toString().contains(processedFiles.get(pf)))
+						temp.add(files.get(fidx));
+			}
+			files = temp;
+		}
+
 		for(int fidx=0; fidx<files.size(); ++fidx) {
 			String[] fpath = files.get(fidx).toString().split("\\\\");
 			Collections.reverse(Arrays.asList(fpath));
 			String fileName = fpath[0];
+			if(!fileName.contains(".avi"))
+				continue;
+
 			System.out.println(">>> PROCESSING: " + fileName);
+
+			if(CONFIG.DB_INSERT)
+				Files.write(Paths.get("C:/Dev/fork/cineast/cineast-core/src/main/java/org/vitrivr/cineast/core/mms/Data/status.txt"), ("processing " + fileName + "\n").getBytes(), StandardOpenOption.APPEND);
+
 			rect_volume = new Vector<Float>();
 			poly_volume = new Vector<Float>();
 			Mat frame = new Mat();
@@ -293,7 +336,8 @@ public class Main {
 				rect_features.set(ind, rect_volume.get(ind));
 			String id = UUID.randomUUID().toString();
 
-			dbHelper.insertBBToDb(id, fileName, rect_features);
+			if(CONFIG.DB_INSERT)
+				dbHelper.insertBBToDb(id, fileName, rect_features);
 			/**
 			 * BB volume insert END
 			 */
@@ -310,21 +354,62 @@ public class Main {
 			for (int ind = 0; ind < poly_volume.size(); ++ind)
 				polyvol_features.set(ind, poly_volume.get(ind));
 
-			dbHelper.insertPVToDb(id, fileName, polyvol_features);
+			if(CONFIG.DB_INSERT)
+				dbHelper.insertPVToDb(id, fileName, polyvol_features);
 			/**
 			 * Poly volume insert END
 			 */
 
 			//perform KNN on vectors
 			if(CONFIG.PERFORM_EVALUATION) {
+				final CottontailGrpc.FloatVector.Builder bb_vol_vector = CottontailGrpc.FloatVector.newBuilder();
+				bb_vol_vector.addAllVector(rect_features);
 				final CottontailGrpc.FloatVector.Builder poly_vol_vector = CottontailGrpc.FloatVector.newBuilder();
 				poly_vol_vector.addAllVector(polyvol_features);
-				System.out.println("Current file: " + fileName);
-				dbHelper.executeNearestNeighborQuery(poly_vol_vector, "PV", "PV");
+
+				//BB
+				File fbb = new File("C:\\Dev\\fork\\cineast\\cineast-core\\src\\main\\java\\org\\vitrivr\\cineast\\core\\mms\\Data\\evaluation\\" + fileName + "-BB.json");
+				fbb.createNewFile();
+				Files.write(fbb.toPath(), ("[\n").getBytes(), StandardOpenOption.APPEND);
+				Iterator<CottontailGrpc.QueryResponseMessage> bbResults = dbHelper.executeNearestNeighborQuery(bb_vol_vector, "BB", "BB");
+				bbResults.forEachRemaining(r -> r.getTuplesList().forEach(t -> {
+					try {
+						writeJSON(fileName, t.getData(1).getStringData(), "BB");
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+				}));
+				Files.write(fbb.toPath(), ("{ \"Query\": \"endQ\",\n" + "\"Result\": \"endR\"}\n]").getBytes(), StandardOpenOption.APPEND);
+				//END BB
+
+				File fpv = new File("C:\\Dev\\fork\\cineast\\cineast-core\\src\\main\\java\\org\\vitrivr\\cineast\\core\\mms\\Data\\evaluation\\" + fileName + "-PV.json");
+				fpv.createNewFile();
+				Files.write(fpv.toPath(), ("[\n").getBytes(), StandardOpenOption.APPEND);
+				Iterator<CottontailGrpc.QueryResponseMessage> pvResults = dbHelper.executeNearestNeighborQuery(poly_vol_vector, "PV", "PV");
+				pvResults.forEachRemaining(r -> r.getTuplesList().forEach(t -> {
+					try {
+						writeJSON(fileName, t.getData(1).getStringData(), "PV");
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+				}));
+				Files.write(fpv.toPath(), ("{ \"Query\": \"endQ\",\n" + "\"Result\": \"endR\"}\n]").getBytes(), StandardOpenOption.APPEND);
 			}
+
+			camera.release();
 		}
 		System.out.println("============================ END ============================");
 	}
+
+	private static void writeJSON(String fileName, String data, String mode) throws IOException {
+		if (mode == "BB") {
+			Files.write(Paths.get("C:\\Dev\\fork\\cineast\\cineast-core\\src\\main\\java\\org\\vitrivr\\cineast\\core\\mms\\Data\\evaluation\\" + fileName + "-BB.json"), ("{ \"Query\": \"" + fileName + "\",\n" + "\"Result\": \"" + data + "\"},").getBytes(), StandardOpenOption.APPEND);
+		} else {
+
+			Files.write(Paths.get("C:\\Dev\\fork\\cineast\\cineast-core\\src\\main\\java\\org\\vitrivr\\cineast\\core\\mms\\Data\\evaluation\\" + fileName + "-PV.json"), ("{ \"Query\": \"" + fileName + "\",\n" + "\"Result\": \"" + data + "\"},").getBytes(), StandardOpenOption.APPEND);
+		}
+	}
+
 
 	// background substractionMOG2
 	protected static void processFrame(VideoCapture capture, Mat mRgba,

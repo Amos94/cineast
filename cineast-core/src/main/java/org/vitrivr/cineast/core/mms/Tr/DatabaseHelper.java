@@ -259,38 +259,36 @@ public class DatabaseHelper {
 		return sb.toString();
 	}
 
-	public static void  executeNearestNeighborQuery(CottontailGrpc.FloatVector.Builder vector, String entityName, String schemaName)  {
+	public static Iterator<CottontailGrpc.QueryResponseMessage> executeNearestNeighborQuery(CottontailGrpc.FloatVector.Builder vector, String entityName, String schemaName)  {
 		/* Number of entries to return. */
-		final int k = 5;
+		final int k = 10;
 
 			/* Prepare kNN query vector. */
 		final CottontailGrpc.QueryMessage query = CottontailGrpc.QueryMessage.newBuilder().setQuery(
 				CottontailGrpc.Query.newBuilder().setFrom(CottontailGrpc.From.newBuilder().setScan(
 						CottontailGrpc.Scan.newBuilder().setEntity(CottontailGrpc.EntityName.newBuilder().setName(entityName).setSchema(CottontailGrpc.SchemaName.newBuilder().setName(schemaName)))).build() /* Entity to select data from. */
 				)
-						.setKnn(CottontailGrpc.Knn.newBuilder().setK(k).setAttribute(CottontailGrpc.ColumnName.newBuilder().setName("features")).setDistance(CottontailGrpc.Knn.Distance.COSINE).setQuery(CottontailGrpc.Vector.newBuilder().setFloatVector(vector))) /* kNN predicate on the column 'feature' with k = 10 and cosine distance. */
+						.setKnn(CottontailGrpc.Knn.newBuilder().setK(k).setAttribute(CottontailGrpc.ColumnName.newBuilder().setName("features")).setDistance(CottontailGrpc.Knn.Distance.L2SQUARED).setQuery(CottontailGrpc.Vector.newBuilder().setFloatVector(vector))) /* kNN predicate on the column 'feature' with k = 10 and cosine distance. */
 						.setProjection(CottontailGrpc.Projection.newBuilder()
 								.addColumns(
 								CottontailGrpc.Projection.ProjectionElement.newBuilder().setColumn(CottontailGrpc.ColumnName.newBuilder().setName("id")) /* Star projection. */
-
 								)
 								.addColumns(
 										CottontailGrpc.Projection.ProjectionElement.newBuilder().setColumn(CottontailGrpc.ColumnName.newBuilder().setName("filename")) /* Star projection. */
-
 								)
 								.addColumns(
 								CottontailGrpc.Projection.ProjectionElement.newBuilder().setColumn(CottontailGrpc.ColumnName.newBuilder().setName("distance")) /* Star projection. */
-
 								))
-		).build();
+				).build();
 
 		/* Execute query. */
 		final Iterator<CottontailGrpc.QueryResponseMessage> results = DQL_SERVICE.query(query);
 
 		/* Print results. */
-		System.out.println("Results of query:");
-		results.forEachRemaining(r -> r.getTuplesList().forEach(t -> System.out.println(t.toString())));
+		//System.out.println("Results of query:");
+		//results.forEachRemaining(r -> r.getTuplesList().forEach(t -> System.out.println(t.toString())));
 
+		return results;
 	}
 
 }
