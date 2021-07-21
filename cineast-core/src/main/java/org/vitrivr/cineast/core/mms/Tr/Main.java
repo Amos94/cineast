@@ -43,6 +43,7 @@ public class Main {
 		System.loadLibrary("opencv_java452");
 		// System.loadLibrary("opencv_java2410");
 	}
+	//TODO serialize data in JSON
 
 	/** Cottontail DB gRPC channel; adjust Cottontail DB host and port according to your needs. */
 	private static final ManagedChannel CHANNEL  = ManagedChannelBuilder.forAddress("127.0.0.1", 1865).usePlaintext().build();
