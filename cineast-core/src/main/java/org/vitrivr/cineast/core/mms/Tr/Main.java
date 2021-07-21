@@ -201,6 +201,7 @@ public class Main {
 			camera.open(files.get(fidx).toString());
 			// VideoCapture camera = new VideoCapture(0);
 			int i = 0;
+			int maxF = CONFIG.EVALUATION_MAXIMUM_STACK_FRAMES;
 
 			if (!camera.isOpened()) {
 				System.out.print("Can not open Camera, try it later.");
@@ -210,6 +211,15 @@ public class Main {
 			int index = 0;
 			int frameNumber = 0;
 			while (true) {
+
+				if(CONFIG.PERFORM_EVALUATION) {
+					if (maxF <= 0) {
+						System.out.println("> "+CONFIG.EVALUATION_MAXIMUM_STACK_FRAMES+" frames");
+						break;
+					}
+					--maxF;
+				}
+
 				if (!camera.read(frame))
 					break;
 				Imgproc.resize(frame, frame, new Size(CONFIG.FRAME_WIDTH, CONFIG.FRAME_HEIGHT),
