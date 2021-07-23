@@ -1,5 +1,6 @@
 package org.vitrivr.cineast.core.mms.Tr;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
@@ -72,7 +73,7 @@ public class Main {
 	private static Vector<Float> rect_volume;
 	private static Vector<Float> poly_volume;
 	private static JsonObject volume_json;
-	private static JsonObject polygons;
+	private static JsonArray polygons;
 	private static JsonObject lastObject;
 	private static boolean insertedFirstBB;
 	private boolean insertedLastBB = false;
@@ -190,7 +191,7 @@ public class Main {
 			rect_volume = new Vector<Float>();
 			poly_volume = new Vector<Float>();
 			volume_json = new JsonObject();
-			polygons = new JsonObject();
+			polygons = new JsonArray();
 			insertedFirstBB = false;
 
 			Mat frame = new Mat();
@@ -571,13 +572,13 @@ public class Main {
 					firstObject.addProperty("FrameNumber", frameNumber);
 					firstObject.addProperty("Index", index);
 
-					JsonObject firstBB = new JsonObject();
+					JsonArray firstBB = new JsonArray();
 					//TODO: RECONCILE THE WAY POINTS ARE ADDED => TOO TIRED NOW
 					JsonObject pointTopLeft= new JsonObject(); JsonObject pointTopRight= new JsonObject(); JsonObject pointBottomLeft= new JsonObject(); JsonObject pointBottomRight = new JsonObject();
-					pointTopLeft.addProperty("X", r.tl().x); pointTopLeft.addProperty("Y",r.tl().y); firstBB.add("Point", pointTopLeft);
-					pointTopRight.addProperty("X",r.tl().x + r.width); pointTopRight.addProperty("Y", r.tl().y); firstBB.add("Point", pointTopRight);
-					pointBottomLeft.addProperty("X", r.tl().x); pointBottomLeft.addProperty("Y", r.tl().y + r.height); firstBB.add("Point", pointBottomLeft);
-					pointBottomRight.addProperty("X",r.br().x); pointBottomRight.addProperty("Y", r.br().y); firstBB.add("Point", pointBottomRight);
+					pointTopLeft.addProperty("X", r.tl().x); pointTopLeft.addProperty("Y",r.tl().y); firstBB.add(pointTopLeft);
+					pointTopRight.addProperty("X",r.tl().x + r.width); pointTopRight.addProperty("Y", r.tl().y); firstBB.add(pointTopRight);
+					pointBottomLeft.addProperty("X", r.tl().x); pointBottomLeft.addProperty("Y", r.tl().y + r.height); firstBB.add(pointBottomLeft);
+					pointBottomRight.addProperty("X",r.br().x); pointBottomRight.addProperty("Y", r.br().y); firstBB.add(pointBottomRight);
 
 					firstObject.add("Rect", firstBB);
 
@@ -585,34 +586,32 @@ public class Main {
 					insertedFirstBB = true;
 				}
 
-				JsonObject volumeObject = new JsonObject();
-				volumeObject.addProperty("FrameNumber", frameNumber);
-				volumeObject.addProperty("Index", index);
-
-				JsonObject polygonObject = new JsonObject();
+				JsonArray polygonArray = new JsonArray();
 				for(org.vitrivr.cineast.core.mms.Helper.Point p : simplifiedPolygon){
 					JsonObject point = new JsonObject();
 					point.addProperty("X", p.x);
 					point.addProperty("Y", p.y);
 
-					polygonObject.add("Point", point);
-				}
-				polygons.add("Polygon", polygons);
+					point.addProperty("FrameNumber", frameNumber);
+					point.addProperty("Index", index);
 
+					polygonArray.add(point);
+				}
+				polygons.add(polygonArray);
 
 				lastObject = new JsonObject();
 				lastObject.addProperty("FrameNumber", frameNumber);
 				lastObject.addProperty("Index", index);
 
-				JsonObject firstBB = new JsonObject();
+				JsonArray lastBB = new JsonArray();
 				//TODO: RECONCILE THE WAY POINTS ARE ADDED => TOO TIRED NOW
 				JsonObject pointTopLeft= new JsonObject(); JsonObject pointTopRight= new JsonObject(); JsonObject pointBottomLeft= new JsonObject(); JsonObject pointBottomRight = new JsonObject();
-				pointTopLeft.addProperty("X", r.tl().x); pointTopLeft.addProperty("Y",r.tl().y); firstBB.add("Point", pointTopLeft);
-				pointTopRight.addProperty("X",r.tl().x + r.width); pointTopRight.addProperty("Y", r.tl().y); firstBB.add("Point", pointTopRight);
-				pointBottomLeft.addProperty("X", r.tl().x); pointBottomLeft.addProperty("Y", r.tl().y + r.height); firstBB.add("Point", pointBottomLeft);
-				pointBottomRight.addProperty("X",r.br().x); pointBottomRight.addProperty("Y", r.br().y); firstBB.add("Point", pointBottomRight);
+				pointTopLeft.addProperty("X", r.tl().x); pointTopLeft.addProperty("Y",r.tl().y); lastBB.add(pointTopLeft);
+				pointTopRight.addProperty("X",r.tl().x + r.width); pointTopRight.addProperty("Y", r.tl().y); lastBB.add(pointTopRight);
+				pointBottomLeft.addProperty("X", r.tl().x); pointBottomLeft.addProperty("Y", r.tl().y + r.height); lastBB.add(pointBottomLeft);
+				pointBottomRight.addProperty("X",r.br().x); pointBottomRight.addProperty("Y", r.br().y); lastBB.add(pointBottomRight);
 
-				lastObject.add("Rect", firstBB);
+				lastObject.add("Rect", lastBB);
 				/**
 				 * END Serialize JSON
 				 * */
