@@ -15,6 +15,8 @@ public class CONFIG {
 
 	public static String filename = "C:\\DEV\\cineast\\cineast-core\\src\\main\\java\\org\\vitrivr\\cineast\\core\\mms\\Data\\atrium.avi";
 	public static String davisFolder = "C:\\DEV\\cineast\\cineast-core\\src\\main\\java\\org\\vitrivr\\cineast\\core\\mms\\Data\\Davis";
+	public static int EVALUATION_MAXIMUM_STACK_FRAMES = 5;
+
 	public static String ytVosFolder = "C:\\DEV\\cineast\\cineast-core\\src\\main\\java\\org\\vitrivr\\cineast\\core\\mms\\Data\\YT-VOS";
 
 	public static int FRAME_WIDTH = Toolkit.getDefaultToolkit().getScreenSize().width / 2;
