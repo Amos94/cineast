@@ -13,9 +13,9 @@ public class CONFIG {
 	public static boolean DB_INSERT = false;
 	public static boolean DO_POLY_OPERATIONS = false; //in order to know how to serialize the data
 
-	public static String filename = "C:\\Dev\\fork\\cineast\\cineast-core\\src\\main\\java\\org\\vitrivr\\cineast\\core\\mms\\Data\\atrium.avi";
-	public static String davisFolder = "C:\\Dev\\fork\\cineast\\cineast-core\\src\\main\\java\\org\\vitrivr\\cineast\\core\\mms\\Data\\Davis";
-	public static String ytVosFolder = "C:\\Dev\\fork\\cineast\\cineast-core\\src\\main\\java\\org\\vitrivr\\cineast\\core\\mms\\Data\\YT-VOS";
+	public static String filename = "C:\\DEV\\cineast\\cineast-core\\src\\main\\java\\org\\vitrivr\\cineast\\core\\mms\\Data\\atrium.avi";
+	public static String davisFolder = "C:\\DEV\\cineast\\cineast-core\\src\\main\\java\\org\\vitrivr\\cineast\\core\\mms\\Data\\Davis";
+	public static String ytVosFolder = "C:\\DEV\\cineast\\cineast-core\\src\\main\\java\\org\\vitrivr\\cineast\\core\\mms\\Data\\YT-VOS";
 
 	public static int FRAME_WIDTH = Toolkit.getDefaultToolkit().getScreenSize().width / 2;
 	public static int FRAME_HEIGHT = Toolkit.getDefaultToolkit().getScreenSize().height / 2;

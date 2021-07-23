@@ -45,7 +45,7 @@ subprojects {
         jcenter()
         mavenCentral()
         flatDir {
-            dirs 'C:\\Dev\\fork\\cineast\\libs'
+            dirs 'C:\\DEV\\cineast\\libs'
             maven {
                 url "https://oss.sonatype.org/content/repositories/snapshots/"
             }

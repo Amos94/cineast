@@ -99,7 +99,7 @@ signing {
  * With Gradle 6.7 and MacOS, declaring dependencies as implementation means they do not get exposed to other projects
  */
 dependencies {
-    compile fileTree(dir: 'C:\\Dev\\fork\\cineast\\libs', include: ['*.jar'])
+    compile fileTree(dir: 'C:\\DEV\\cineast\\libs', include: ['*.jar'])
 
     implementation group: 'org.javatuples', name: 'javatuples', version: '1.2'
 

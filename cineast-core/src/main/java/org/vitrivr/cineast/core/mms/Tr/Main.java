@@ -1,5 +1,6 @@
 package org.vitrivr.cineast.core.mms.Tr;
 
+import com.google.gson.JsonObject;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import org.opencv.core.Point;
@@ -10,6 +11,7 @@ import org.opencv.video.BackgroundSubtractorMOG2;
 import org.opencv.video.Video;
 import org.opencv.videoio.VideoCapture;
 import org.vitrivr.cineast.core.mms.Algorithms.Polygons.Algos.Epsilon;
+import org.vitrivr.cineast.core.mms.Algorithms.Polygons.Algos.models.Polygon;
 import org.vitrivr.cineast.core.mms.Algorithms.Polygons.RamerDouglasPeucker;
 import org.vitrivr.cineast.core.mms.Helper.ConvexHull;
 import org.vitrivr.cineast.core.mms.Helper.Volume;
@@ -69,6 +71,11 @@ public class Main {
 	public static Tracker tracker;
 	private static Vector<Float> rect_volume;
 	private static Vector<Float> poly_volume;
+	private static JsonObject volume_json;
+	private static JsonObject polygons;
+	private static JsonObject lastObject;
+	private static boolean insertedFirstBB;
+	private boolean insertedLastBB = false;
 	private static DatabaseHelper dbHelper;
 
 	public static void main(String[] args) throws InterruptedException, IOException {
@@ -76,7 +83,6 @@ public class Main {
 		if (args.length>0){
 			CONFIG.filename = args[0];
 		}
-
 
 
 		JLabel vidpanel = new JLabel();
@@ -129,15 +135,15 @@ public class Main {
 		}
 
 		List<Path> files = new ArrayList<Path>();
-		Stream<Path> davis = Files.walk(Paths.get("C:/Dev/fork/cineast/cineast-core/src/main/java/org/vitrivr/cineast/core/mms/Data/Davis/"));
+		Stream<Path> davis = Files.walk(Paths.get("C:/DEV/cineast/cineast-core/src/main/java/org/vitrivr/cineast/core/mms/Data/Davis/"));
 		files.addAll(davis.filter(Files::isRegularFile).collect(Collectors.toList()));
 
-		Stream<Path> yt = Files.walk(Paths.get("C:/Dev/fork/cineast/cineast-core/src/main/java/org/vitrivr/cineast/core/mms/Data/YT-VOS/"));
+		Stream<Path> yt = Files.walk(Paths.get("C:/DEV/cineast/cineast-core/src/main/java/org/vitrivr/cineast/core/mms/Data/YT-VOS/"));
 		files.addAll(yt.filter(Files::isRegularFile).collect(Collectors.toList()));
 
 		if(CONFIG.DB_INSERT) {
 			List<String> processedFiles = new ArrayList<>();
-			try (Stream<String> stream = Files.lines(Paths.get("C:/Dev/fork/cineast/cineast-core/src/main/java/org/vitrivr/cineast/core/mms/Data/status.txt"))) {
+			try (Stream<String> stream = Files.lines(Paths.get("C:/DEV/cineast/cineast-core/src/main/java/org/vitrivr/cineast/core/mms/Data/status.txt"))) {
 				List<String> strs = stream.collect(Collectors.toList());
 				for (int i = 0; i < strs.size(); ++i) {
 					String fn = strs.get(i).split(" ")[1];
@@ -153,7 +159,7 @@ public class Main {
 
 		if(CONFIG.PERFORM_EVALUATION) {
 			List<String> processedFiles = new ArrayList<>();
-			try (Stream<String> stream = Files.lines(Paths.get("C:/Dev/fork/cineast/cineast-core/src/main/java/org/vitrivr/cineast/core/mms/Data/status.txt"))) {
+			try (Stream<String> stream = Files.lines(Paths.get("C:/DEV/cineast/cineast-core/src/main/java/org/vitrivr/cineast/core/mms/Data/status.txt"))) {
 				List<String> strs = stream.collect(Collectors.toList());
 				for (int i = 0; i < strs.size(); ++i) {
 					String fn = strs.get(i).split(" ")[1];
@@ -179,10 +185,14 @@ public class Main {
 			System.out.println(">>> PROCESSING: " + fileName);
 
 			if(CONFIG.DB_INSERT)
-				Files.write(Paths.get("C:/Dev/fork/cineast/cineast-core/src/main/java/org/vitrivr/cineast/core/mms/Data/status.txt"), ("processing " + fileName + "\n").getBytes(), StandardOpenOption.APPEND);
+				Files.write(Paths.get("C:/DEV/cineast/cineast-core/src/main/java/org/vitrivr/cineast/core/mms/Data/status.txt"), ("processing " + fileName + "\n").getBytes(), StandardOpenOption.APPEND);
 
 			rect_volume = new Vector<Float>();
 			poly_volume = new Vector<Float>();
+			volume_json = new JsonObject();
+			polygons = new JsonObject();
+			insertedFirstBB = false;
+
 			Mat frame = new Mat();
 			Mat outbox = new Mat();
 			Mat diffFrame = null;
@@ -264,7 +274,7 @@ public class Main {
 								gc.setWidth((int) (obj.br().x + obj.tl().x));
 								gc.setHeight((int) (obj.br().y + obj.tl().y));
 								Mat result = gc.process(imag);
-								final String targetFile = "C:\\Dev\\fork\\cineast\\cineast-core\\src\\main\\java\\org\\vitrivr\\cineast\\core\\mms\\Data\\graphcutdata\\current-gc" + idx + ".jpg";
+								final String targetFile = "C:\\DEV\\cineast\\cineast-core\\src\\main\\java\\org\\vitrivr\\cineast\\core\\mms\\Data\\graphcutdata\\current-gc" + idx + ".jpg";
 								if (!result.empty())
 									imwrite(targetFile, result);
 								else
@@ -319,10 +329,6 @@ public class Main {
 				}
 
 				++frameNumber;
-
-				if (!IS_DEVELOPMENT)
-					if (rect_volume.size() >= 1000)
-						break;
 			}
 
 			/**
@@ -369,7 +375,7 @@ public class Main {
 				poly_vol_vector.addAllVector(polyvol_features);
 
 				//BB
-				File fbb = new File("C:\\Dev\\fork\\cineast\\cineast-core\\src\\main\\java\\org\\vitrivr\\cineast\\core\\mms\\Data\\evaluation\\" + fileName + "-BB.json");
+				File fbb = new File("C:\\DEV\\cineast\\cineast-core\\src\\main\\java\\org\\vitrivr\\cineast\\core\\mms\\Data\\evaluation\\" + fileName + "-BB.json");
 				fbb.createNewFile();
 				Files.write(fbb.toPath(), ("[\n").getBytes(), StandardOpenOption.APPEND);
 				Iterator<CottontailGrpc.QueryResponseMessage> bbResults = dbHelper.executeNearestNeighborQuery(bb_vol_vector, "BB", "BB");
@@ -383,7 +389,7 @@ public class Main {
 				Files.write(fbb.toPath(), ("{ \"Query\": \"endQ\",\n" + "\"Result\": \"endR\"}\n]").getBytes(), StandardOpenOption.APPEND);
 				//END BB
 
-				File fpv = new File("C:\\Dev\\fork\\cineast\\cineast-core\\src\\main\\java\\org\\vitrivr\\cineast\\core\\mms\\Data\\evaluation\\" + fileName + "-PV.json");
+				File fpv = new File("C:\\DEV\\cineast\\cineast-core\\src\\main\\java\\org\\vitrivr\\cineast\\core\\mms\\Data\\evaluation\\" + fileName + "-PV.json");
 				fpv.createNewFile();
 				Files.write(fpv.toPath(), ("[\n").getBytes(), StandardOpenOption.APPEND);
 				Iterator<CottontailGrpc.QueryResponseMessage> pvResults = dbHelper.executeNearestNeighborQuery(poly_vol_vector, "PV", "PV");
@@ -398,16 +404,20 @@ public class Main {
 			}
 
 			camera.release();
+			volume_json.add("Polygons", polygons);
+			volume_json.add("LastObject", lastObject);
+
+			System.out.println(volume_json.toString());
 		}
 		System.out.println("============================ END ============================");
 	}
 
 	private static void writeJSON(String fileName, String data, String mode) throws IOException {
 		if (mode == "BB") {
-			Files.write(Paths.get("C:\\Dev\\fork\\cineast\\cineast-core\\src\\main\\java\\org\\vitrivr\\cineast\\core\\mms\\Data\\evaluation\\" + fileName + "-BB.json"), ("{ \"Query\": \"" + fileName + "\",\n" + "\"Result\": \"" + data + "\"},").getBytes(), StandardOpenOption.APPEND);
+			Files.write(Paths.get("C:\\DEV\\cineast\\cineast-core\\src\\main\\java\\org\\vitrivr\\cineast\\core\\mms\\Data\\evaluation\\" + fileName + "-BB.json"), ("{ \"Query\": \"" + fileName + "\",\n" + "\"Result\": \"" + data + "\"},").getBytes(), StandardOpenOption.APPEND);
 		} else {
 
-			Files.write(Paths.get("C:\\Dev\\fork\\cineast\\cineast-core\\src\\main\\java\\org\\vitrivr\\cineast\\core\\mms\\Data\\evaluation\\" + fileName + "-PV.json"), ("{ \"Query\": \"" + fileName + "\",\n" + "\"Result\": \"" + data + "\"},").getBytes(), StandardOpenOption.APPEND);
+			Files.write(Paths.get("C:\\DEV\\cineast\\cineast-core\\src\\main\\java\\org\\vitrivr\\cineast\\core\\mms\\Data\\evaluation\\" + fileName + "-PV.json"), ("{ \"Query\": \"" + fileName + "\",\n" + "\"Result\": \"" + data + "\"},").getBytes(), StandardOpenOption.APPEND);
 		}
 	}
 
@@ -529,7 +539,7 @@ public class Main {
 
 				if (write) {
 					System.out.println("Writing...");
-					imwrite("C:\\Dev\\fork\\cineast\\cineast-core\\src\\main\\java\\org\\vitrivr\\cineast\\core\\mms\\Data\\graphcutdata\\contour" + index + ".jpg", mask);
+					imwrite("C:\\DEV\\cineast\\cineast-core\\src\\main\\java\\org\\vitrivr\\cineast\\core\\mms\\Data\\graphcutdata\\contour" + index + ".jpg", mask);
 				}
 			}
 			//END POLYGONS
@@ -541,6 +551,61 @@ public class Main {
 				maxAreaIdx = idx;
 				r = Imgproc.boundingRect(contours.get(maxAreaIdx));
 				rect_array.add(r);
+
+				/**
+				 * Serialize JSON
+				 * */
+				if(!insertedFirstBB){
+					JsonObject firstObject = new JsonObject();
+
+					firstObject.addProperty("FrameNumber", frameNumber);
+					firstObject.addProperty("Index", index);
+
+					JsonObject firstBB = new JsonObject();
+					//TODO: RECONCILE THE WAY POINTS ARE ADDED => TOO TIRED NOW
+					JsonObject pointTopLeft= new JsonObject(); JsonObject pointTopRight= new JsonObject(); JsonObject pointBottomLeft= new JsonObject(); JsonObject pointBottomRight = new JsonObject();
+					pointTopLeft.addProperty("X", r.tl().x); pointTopLeft.addProperty("Y",r.tl().y); firstBB.add("Point", pointTopLeft);
+					pointTopRight.addProperty("X",r.tl().x + r.width); pointTopRight.addProperty("Y", r.tl().y); firstBB.add("Point", pointTopRight);
+					pointBottomLeft.addProperty("X", r.tl().x); pointBottomLeft.addProperty("Y", r.tl().y + r.height); firstBB.add("Point", pointBottomLeft);
+					pointBottomRight.addProperty("X",r.br().x); pointBottomRight.addProperty("Y", r.br().y); firstBB.add("Point", pointBottomRight);
+
+					firstObject.add("Rect", firstBB);
+
+					volume_json.add("FirstObject", firstObject);
+					insertedFirstBB = true;
+				}
+
+				JsonObject volumeObject = new JsonObject();
+				volumeObject.addProperty("FrameNumber", frameNumber);
+				volumeObject.addProperty("Index", index);
+
+				JsonObject polygonObject = new JsonObject();
+				for(org.vitrivr.cineast.core.mms.Helper.Point p : simplifiedPolygon){
+					JsonObject point = new JsonObject();
+					point.addProperty("X", p.x);
+					point.addProperty("Y", p.y);
+
+					polygonObject.add("Point", point);
+				}
+				polygons.add("Polygon", polygons);
+
+
+				lastObject = new JsonObject();
+				lastObject.addProperty("FrameNumber", frameNumber);
+				lastObject.addProperty("Index", index);
+
+				JsonObject firstBB = new JsonObject();
+				//TODO: RECONCILE THE WAY POINTS ARE ADDED => TOO TIRED NOW
+				JsonObject pointTopLeft= new JsonObject(); JsonObject pointTopRight= new JsonObject(); JsonObject pointBottomLeft= new JsonObject(); JsonObject pointBottomRight = new JsonObject();
+				pointTopLeft.addProperty("X", r.tl().x); pointTopLeft.addProperty("Y",r.tl().y); firstBB.add("Point", pointTopLeft);
+				pointTopRight.addProperty("X",r.tl().x + r.width); pointTopRight.addProperty("Y", r.tl().y); firstBB.add("Point", pointTopRight);
+				pointBottomLeft.addProperty("X", r.tl().x); pointBottomLeft.addProperty("Y", r.tl().y + r.height); firstBB.add("Point", pointBottomLeft);
+				pointBottomRight.addProperty("X",r.br().x); pointBottomRight.addProperty("Y", r.br().y); firstBB.add("Point", pointBottomRight);
+
+				lastObject.add("Rect", firstBB);
+				/**
+				 * END Serialize JSON
+				 * */
 
 				/**
 				 * POLYGON VOLUME BELOW (DB)
@@ -613,7 +678,7 @@ public class Main {
 				regions.add(region);
 			}
 
-			org.vitrivr.cineast.core.mms.Algorithms.Polygons.Algos.models.Polygon pol = new org.vitrivr.cineast.core.mms.Algorithms.Polygons.Algos.models.Polygon(regions);
+			Polygon pol = new Polygon(regions);
 
 			//System.out.println(pol);
 			//Db.dropSchema();
