@@ -143,6 +143,59 @@ public class DatabaseHelper {
 		System.out.println("Entity '" + SCHEMA_NAME + "." + "poly" + "' created successfully.");
 	}
 
+	public static void initializeJSONSchema(){
+		final CottontailGrpc.CreateSchemaMessage schemaDefinitionMessage = CottontailGrpc.CreateSchemaMessage.
+				newBuilder().
+				setSchema(CottontailGrpc.SchemaName.newBuilder().setName("PVJ")).build();
+		DDL_SERVICE.createSchema(schemaDefinitionMessage);
+		System.out.println("Schema '" + "PVJ" + "' created successfully.");
+	}
+	public static void initializeJSONEntitites(){
+		final CottontailGrpc.TransactionId txId = TXN_SERVICE.begin(Empty.getDefaultInstance());
+		final CottontailGrpc.EntityDefinition definition = CottontailGrpc.EntityDefinition.newBuilder()
+				.setEntity(CottontailGrpc.EntityName.newBuilder().setName("PVJ").setSchema(CottontailGrpc.SchemaName.newBuilder().setName("PVJ"))) /* Name of entity and schema it belongs to. */
+				.addColumns(CottontailGrpc.ColumnDefinition.newBuilder().setType(CottontailGrpc.Type.STRING).setName("id").setEngine(CottontailGrpc.Engine.MAPDB).setNullable(false)) /* 1st column: id (String) */
+				.addColumns(CottontailGrpc.ColumnDefinition.newBuilder().setType(CottontailGrpc.Type.STRING).setName("filename").setEngine(CottontailGrpc.Engine.MAPDB).setNullable(false)) /* 1st column: id (String) */
+				.addColumns(CottontailGrpc.ColumnDefinition.newBuilder().setType(CottontailGrpc.Type.STRING).setName("features").setEngine(CottontailGrpc.Engine.MAPDB).setNullable(false))  /* 4th column poly json*/
+				.build();
+
+		DDL_SERVICE.createEntity(CottontailGrpc.CreateEntityMessage.newBuilder().setTxId(txId).setDefinition(definition).build());
+
+		TXN_SERVICE.commit(txId);
+		System.out.println("Entity '" + "PVJ" + "." + "PVJ" + "' created successfully.");
+	}
+
+	public static void insertJSONToDb(String guid, String fname, String jObject){
+		//initializeBBSchema();
+		//initializeBBEntitites();
+
+		/* Start a transaction per INSERT. */
+		final CottontailGrpc.TransactionId txId = TXN_SERVICE.begin(Empty.getDefaultInstance());
+
+
+		/* prepare for insert */
+		final CottontailGrpc.FloatVector.Builder vector = CottontailGrpc.FloatVector.newBuilder();
+		final CottontailGrpc.Literal id = CottontailGrpc.Literal.newBuilder().setStringData(guid).build();
+		final CottontailGrpc.Literal filename = CottontailGrpc.Literal.newBuilder().setStringData(fname).build();
+		final CottontailGrpc.Literal jsonObject = CottontailGrpc.Literal.newBuilder().setStringData(jObject).build();
+
+		/* do insert */
+
+		/* Prepare INSERT message. */
+		final CottontailGrpc.InsertMessage insertMessage = CottontailGrpc.InsertMessage.newBuilder()
+				.setTxId(txId)
+				.setFrom(CottontailGrpc.From.newBuilder().setScan(CottontailGrpc.Scan.newBuilder().setEntity(CottontailGrpc.EntityName.newBuilder().setName("PVJ").setSchema(CottontailGrpc.SchemaName.newBuilder().setName("PVJ"))))) /* Entity the data should be inserted into. */
+				.addElements(CottontailGrpc.InsertMessage.InsertElement.newBuilder().setColumn(CottontailGrpc.ColumnName.newBuilder().setName("id")).setValue(id).build())
+				.addElements(CottontailGrpc.InsertMessage.InsertElement.newBuilder().setColumn(CottontailGrpc.ColumnName.newBuilder().setName("filename")).setValue(filename).build())
+				.addElements(CottontailGrpc.InsertMessage.InsertElement.newBuilder().setColumn(CottontailGrpc.ColumnName.newBuilder().setName("features")).setValue(jsonObject).build())
+				.build();
+
+		/* Send INSERT message. */
+		DML_SERVICE.insert(insertMessage);
+
+		TXN_SERVICE.commit(txId);
+	}
+
 
 	/** Name of the Cottontail DB Schema and dimension of its vector column. */
 	public static void insertBBToDb(String guid, String fname, List<Float> points){

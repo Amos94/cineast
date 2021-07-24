@@ -188,8 +188,10 @@ public class Main {
 			if(CONFIG.DB_INSERT)
 				Files.write(Paths.get("C:/DEV/cineast/cineast-core/src/main/java/org/vitrivr/cineast/core/mms/Data/status.txt"), ("processing " + fileName + "\n").getBytes(), StandardOpenOption.APPEND);
 
-			rect_volume = new Vector<Float>();
-			poly_volume = new Vector<Float>();
+			if(CONFIG.SERIALIZE_TO_FLOAT_VEC) {
+				rect_volume = new Vector<Float>();
+				poly_volume = new Vector<Float>();
+			}
 			volume_json = new JsonObject();
 			polygons = new JsonArray();
 			insertedFirstBB = false;
@@ -342,83 +344,99 @@ public class Main {
 				++frameNumber;
 			}
 
-			/**
-			 * BB volume insert
-			 */
-			if(fidx == 0 && CONFIG.INITIALIZE_SCHEMA) {
-				dbHelper.initializeBBSchema();
-				dbHelper.initializeBBEntitites();
+			if(CONFIG.SERIALIZE_TO_FLOAT_VEC) {
+				/**
+				 * BB volume insert
+				 */
+				if (fidx == 0 && CONFIG.INITIALIZE_SCHEMA) {
+					dbHelper.initializeBBSchema();
+					dbHelper.initializeBBEntitites();
+				}
+				Vector<Float> rect_features = new Vector<>(Collections.<Float>nCopies(1000000, (float) -1));
+				for (int ind = 0; ind < rect_volume.size(); ++ind)
+					rect_features.set(ind, rect_volume.get(ind));
+				String id = UUID.randomUUID().toString();
+
+				if (CONFIG.DB_INSERT)
+					dbHelper.insertBBToDb(id, fileName, rect_features);
+				/**
+				 * BB volume insert END
+				 */
+
+
+				/**
+				 * Poly volume insert
+				 */
+				if (fidx == 0 && CONFIG.INITIALIZE_SCHEMA) {
+					dbHelper.initializePolyVolumeSchema();
+					dbHelper.initializePolyVolumeEntitites();
+				}
+				Vector<Float> polyvol_features = new Vector<>(Collections.<Float>nCopies(1000000, (float) -1));
+				for (int ind = 0; ind < poly_volume.size(); ++ind)
+					polyvol_features.set(ind, poly_volume.get(ind));
+
+				if (CONFIG.DB_INSERT)
+					dbHelper.insertPVToDb(id, fileName, polyvol_features);
+				/**
+				 * Poly volume insert END
+				 */
+
+				//perform KNN on vectors
+				if(CONFIG.PERFORM_EVALUATION) {
+					final CottontailGrpc.FloatVector.Builder bb_vol_vector = CottontailGrpc.FloatVector.newBuilder();
+					bb_vol_vector.addAllVector(rect_features);
+					final CottontailGrpc.FloatVector.Builder poly_vol_vector = CottontailGrpc.FloatVector.newBuilder();
+					poly_vol_vector.addAllVector(polyvol_features);
+
+					//BB
+					File fbb = new File("C:\\DEV\\cineast\\cineast-core\\src\\main\\java\\org\\vitrivr\\cineast\\core\\mms\\Data\\evaluation\\" + fileName + "-BB.json");
+					fbb.createNewFile();
+					Files.write(fbb.toPath(), ("[\n").getBytes(), StandardOpenOption.APPEND);
+					Iterator<CottontailGrpc.QueryResponseMessage> bbResults = dbHelper.executeNearestNeighborQuery(bb_vol_vector, "BB", "BB");
+					bbResults.forEachRemaining(r -> r.getTuplesList().forEach(t -> {
+						try {
+							writeJSON(fileName, t.getData(1).getStringData(), "BB");
+						} catch (IOException e) {
+							e.printStackTrace();
+						}
+					}));
+					Files.write(fbb.toPath(), ("{ \"Query\": \"endQ\",\n" + "\"Result\": \"endR\"}\n]").getBytes(), StandardOpenOption.APPEND);
+					//END BB
+
+					File fpv = new File("C:\\DEV\\cineast\\cineast-core\\src\\main\\java\\org\\vitrivr\\cineast\\core\\mms\\Data\\evaluation\\" + fileName + "-PV.json");
+					fpv.createNewFile();
+					Files.write(fpv.toPath(), ("[\n").getBytes(), StandardOpenOption.APPEND);
+					Iterator<CottontailGrpc.QueryResponseMessage> pvResults = dbHelper.executeNearestNeighborQuery(poly_vol_vector, "PV", "PV");
+					pvResults.forEachRemaining(r -> r.getTuplesList().forEach(t -> {
+						try {
+							writeJSON(fileName, t.getData(1).getStringData(), "PV");
+						} catch (IOException e) {
+							e.printStackTrace();
+						}
+					}));
+					Files.write(fpv.toPath(), ("{ \"Query\": \"endQ\",\n" + "\"Result\": \"endR\"}\n]").getBytes(), StandardOpenOption.APPEND);
+				}
 			}
-			Vector<Float> rect_features = new Vector<>(Collections.<Float>nCopies(1000000, (float) -1));
-			for (int ind = 0; ind < rect_volume.size(); ++ind)
-				rect_features.set(ind, rect_volume.get(ind));
-			String id = UUID.randomUUID().toString();
 
-			if(CONFIG.DB_INSERT)
-				dbHelper.insertBBToDb(id, fileName, rect_features);
-			/**
-			 * BB volume insert END
-			 */
+			if(!CONFIG.SERIALIZE_TO_FLOAT_VEC){
+				/**
+				 * JSON volume insert
+				 */
+				if (fidx == 0 && CONFIG.INITIALIZE_SCHEMA) {
+					dbHelper.initializeJSONSchema();
+					dbHelper.initializeJSONEntitites();
+				}
 
-
-			/**
-			 * Poly volume insert
-			 */
-			if(fidx == 0 && CONFIG.INITIALIZE_SCHEMA) {
-				dbHelper.initializePolyVolumeSchema();
-				dbHelper.initializePolyVolumeEntitites();
-			}
-			Vector<Float> polyvol_features = new Vector<>(Collections.<Float>nCopies(1000000, (float) -1));
-			for (int ind = 0; ind < poly_volume.size(); ++ind)
-				polyvol_features.set(ind, poly_volume.get(ind));
-
-			if(CONFIG.DB_INSERT)
-				dbHelper.insertPVToDb(id, fileName, polyvol_features);
-			/**
-			 * Poly volume insert END
-			 */
-
-			//perform KNN on vectors
-			if(CONFIG.PERFORM_EVALUATION) {
-				final CottontailGrpc.FloatVector.Builder bb_vol_vector = CottontailGrpc.FloatVector.newBuilder();
-				bb_vol_vector.addAllVector(rect_features);
-				final CottontailGrpc.FloatVector.Builder poly_vol_vector = CottontailGrpc.FloatVector.newBuilder();
-				poly_vol_vector.addAllVector(polyvol_features);
-
-				//BB
-				File fbb = new File("C:\\DEV\\cineast\\cineast-core\\src\\main\\java\\org\\vitrivr\\cineast\\core\\mms\\Data\\evaluation\\" + fileName + "-BB.json");
-				fbb.createNewFile();
-				Files.write(fbb.toPath(), ("[\n").getBytes(), StandardOpenOption.APPEND);
-				Iterator<CottontailGrpc.QueryResponseMessage> bbResults = dbHelper.executeNearestNeighborQuery(bb_vol_vector, "BB", "BB");
-				bbResults.forEachRemaining(r -> r.getTuplesList().forEach(t -> {
-					try {
-						writeJSON(fileName, t.getData(1).getStringData(), "BB");
-					} catch (IOException e) {
-						e.printStackTrace();
-					}
-				}));
-				Files.write(fbb.toPath(), ("{ \"Query\": \"endQ\",\n" + "\"Result\": \"endR\"}\n]").getBytes(), StandardOpenOption.APPEND);
-				//END BB
-
-				File fpv = new File("C:\\DEV\\cineast\\cineast-core\\src\\main\\java\\org\\vitrivr\\cineast\\core\\mms\\Data\\evaluation\\" + fileName + "-PV.json");
-				fpv.createNewFile();
-				Files.write(fpv.toPath(), ("[\n").getBytes(), StandardOpenOption.APPEND);
-				Iterator<CottontailGrpc.QueryResponseMessage> pvResults = dbHelper.executeNearestNeighborQuery(poly_vol_vector, "PV", "PV");
-				pvResults.forEachRemaining(r -> r.getTuplesList().forEach(t -> {
-					try {
-						writeJSON(fileName, t.getData(1).getStringData(), "PV");
-					} catch (IOException e) {
-						e.printStackTrace();
-					}
-				}));
-				Files.write(fpv.toPath(), ("{ \"Query\": \"endQ\",\n" + "\"Result\": \"endR\"}\n]").getBytes(), StandardOpenOption.APPEND);
+				String id = UUID.randomUUID().toString();
+				if (CONFIG.DB_INSERT)
+					dbHelper.insertJSONToDb(id, fileName, volume_json.toString());
 			}
 
 			camera.release();
 			volume_json.add("Polygons", polygons);
 			volume_json.add("LastObject", lastObject);
 
-			System.out.println(volume_json.toString());
+			//System.out.println(volume_json.toString());
 		}
 		System.out.println("============================ END ============================");
 	}
@@ -616,43 +634,49 @@ public class Main {
 				 * END Serialize JSON
 				 * */
 
-				/**
-				 * POLYGON VOLUME BELOW (DB)
-				 * */
-				if(CONFIG.DO_POLY_OPERATIONS)
-					poly_volume.add((float)Integer.MIN_VALUE);
+				if(CONFIG.SERIALIZE_TO_FLOAT_VEC) {
+					/**
+					 * POLYGON VOLUME BELOW (DB)
+					 * */
+					if (CONFIG.DO_POLY_OPERATIONS)
+						poly_volume.add((float) Integer.MIN_VALUE);
 
-				poly_volume.add((float)frameNumber);
-				poly_volume.add((float)index);
-				for(org.vitrivr.cineast.core.mms.Helper.Point p : simplifiedPolygon){
-					poly_volume.add((float)p.x);
-					poly_volume.add((float)p.y);
+					poly_volume.add((float) frameNumber);
+					poly_volume.add((float) index);
+					for (org.vitrivr.cineast.core.mms.Helper.Point p : simplifiedPolygon) {
+						poly_volume.add((float) p.x);
+						poly_volume.add((float) p.y);
+					}
+
+					/**
+					 * POLYGON VOLUME END (DB)
+					 * */
+
+
+					/**
+					 * BB VOLUME BELOW (DB)
+					 * */
+					//start new volume by adding min value
+					if (CONFIG.DO_POLY_OPERATIONS)
+						rect_volume.add((float) Integer.MIN_VALUE);
+
+					rect_volume.add((float) frameNumber);
+					rect_volume.add((float) index);
+
+					//TODO: RECONCILE THE WAY POINTS ARE ADDED => TOO TIRED NOW
+					rect_volume.add((float) r.tl().x);
+					rect_volume.add((float) r.tl().y);
+					rect_volume.add((float) r.tl().x + r.width);
+					rect_volume.add((float) r.tl().y);
+					rect_volume.add((float) r.tl().x);
+					rect_volume.add((float) r.tl().y + r.height);
+					rect_volume.add((float) r.br().x);
+					rect_volume.add((float) r.br().y);
+					//System.out.println(rect_volume);
+					/**
+					 * BB VOLUME END (DB)
+					 * */
 				}
-
-				/**
-				 * POLYGON VOLUME END (DB)
-				 * */
-
-
-				/**
-				 * BB VOLUME BELOW (DB)
-				 * */
-				//start new volume by adding min value
-				if(CONFIG.DO_POLY_OPERATIONS)
-					rect_volume.add((float)Integer.MIN_VALUE);
-
-				rect_volume.add((float)frameNumber);
-				rect_volume.add((float)index);
-
-				//TODO: RECONCILE THE WAY POINTS ARE ADDED => TOO TIRED NOW
-				rect_volume.add((float)r.tl().x); rect_volume.add((float)r.tl().y);
-				rect_volume.add((float)r.tl().x + r.width); rect_volume.add((float)r.tl().y);
-				rect_volume.add((float)r.tl().x); rect_volume.add((float)r.tl().y + r.height);
-				rect_volume.add((float)r.br().x); rect_volume.add((float)r.br().y);
-				//System.out.println(rect_volume);
-				/**
-				 * BB VOLUME END (DB)
-				 * */
 				Imgproc.drawContours(imag, contours, maxAreaIdx, new Scalar(255, 0, 255));
 
 				//TODO: DO THE GRABCUT GIVEN THE RECTANGLES
