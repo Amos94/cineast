@@ -450,6 +450,25 @@ public class Main {
 		}
 	}
 
+	private static void performEvaluationWithJSON(String queryJson, String resultJson){
+
+	}
+
+	private static Polygon transformJsonToPolygon(String polyJson){
+		Polygon polygon = new Polygon();
+
+
+		return polygon;
+	}
+
+	private static double similarity(List<Polygon> queryPolygons, List<Polygon> resultPolygons){
+
+
+		return 0.0;
+	}
+
+	//TODO: check "gesture" similarity concept
+
 
 	// background substractionMOG2
 	protected static void processFrame(VideoCapture capture, Mat mRgba,
