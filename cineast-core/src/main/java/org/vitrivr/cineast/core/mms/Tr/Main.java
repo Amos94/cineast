@@ -13,7 +13,6 @@ import org.opencv.video.BackgroundSubtractorMOG2;
 import org.opencv.video.Video;
 import org.opencv.videoio.VideoCapture;
 import org.vitrivr.cineast.core.mms.Algorithms.Polygons.Algos.Epsilon;
-import org.vitrivr.cineast.core.mms.Algorithms.Polygons.Algos.PolyBool;
 import org.vitrivr.cineast.core.mms.Algorithms.Polygons.Algos.models.Polygon;
 import org.vitrivr.cineast.core.mms.Algorithms.Polygons.RamerDouglasPeucker;
 import org.vitrivr.cineast.core.mms.Helper.ConvexHull;
@@ -40,7 +39,6 @@ import java.util.stream.Stream;
 
 import static org.opencv.imgcodecs.Imgcodecs.imwrite;
 import static org.vitrivr.cineast.core.mms.Algorithms.Polygons.Algos.helpers.PolyBoolHelper.point;
-import static org.vitrivr.cineast.core.mms.Algorithms.Polygons.Algos.helpers.PolyBoolHelper.region;
 import static org.vitrivr.cineast.core.mms.Tr.CONFIG.IS_DEVELOPMENT;
 
 public class Main {
@@ -488,12 +486,41 @@ public class Main {
 
 	private static double similarity(List<Polygon> queryPolygons, List<Polygon> resultPolygons){
 
-		queryPolygons.get(1).getRegions();
+		double count = 0; int maxSize = -1;
+		for(int i=0; i<queryPolygons.size(); ++i){
+			for(int j=0; j<resultPolygons.size(); ++j){
+				if(PolyEqual(queryPolygons.get(i),resultPolygons.get(j)))
+					++count;
+			}
+		}
 
-		return 0.0;
+		if(queryPolygons.size() >= resultPolygons.size())
+			maxSize = queryPolygons.size();
+		else
+			maxSize = resultPolygons.size();
+
+		return count/maxSize;
 	}
 
 	private static boolean PolyEqual(Polygon qp, Polygon rp){
+		List<List<double[]>> qpRegions = qp.getRegions();
+		List<List<double[]>> rpRegions = rp.getRegions();
+
+		return equalLists(qpRegions, rpRegions);
+	}
+
+	public static boolean equalLists(List<List<double[]>> one, List<List<double[]>> two){
+		if (one == null && two == null){
+			return true;
+		}
+
+		if((one == null && two != null)
+				|| one != null && two == null
+				|| one.size() != two.size()){
+			return false;
+		}
+
+		return one.containsAll(two) && two.containsAll(one);
 	}
 
 	//TODO: check "gesture" similarity concept
