@@ -2,6 +2,7 @@ package org.vitrivr.cineast.core.mms.Tr;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import org.opencv.core.Point;
@@ -12,6 +13,7 @@ import org.opencv.video.BackgroundSubtractorMOG2;
 import org.opencv.video.Video;
 import org.opencv.videoio.VideoCapture;
 import org.vitrivr.cineast.core.mms.Algorithms.Polygons.Algos.Epsilon;
+import org.vitrivr.cineast.core.mms.Algorithms.Polygons.Algos.PolyBool;
 import org.vitrivr.cineast.core.mms.Algorithms.Polygons.Algos.models.Polygon;
 import org.vitrivr.cineast.core.mms.Algorithms.Polygons.RamerDouglasPeucker;
 import org.vitrivr.cineast.core.mms.Helper.ConvexHull;
@@ -38,6 +40,7 @@ import java.util.stream.Stream;
 
 import static org.opencv.imgcodecs.Imgcodecs.imwrite;
 import static org.vitrivr.cineast.core.mms.Algorithms.Polygons.Algos.helpers.PolyBoolHelper.point;
+import static org.vitrivr.cineast.core.mms.Algorithms.Polygons.Algos.helpers.PolyBoolHelper.region;
 import static org.vitrivr.cineast.core.mms.Tr.CONFIG.IS_DEVELOPMENT;
 
 public class Main {
@@ -451,20 +454,46 @@ public class Main {
 	}
 
 	private static void performEvaluationWithJSON(String queryJson, String resultJson){
+		List<Polygon> queryPolygons = new ArrayList<Polygon>();
+		List<Polygon> resultPolygons = new ArrayList<Polygon>();
 
+		JsonObject queryObjJson = new JsonParser().parse(queryJson).getAsJsonObject();
+		JsonObject resultObjJson = new JsonParser().parse(resultJson).getAsJsonObject();
+
+		JsonArray queryPolygonsJson = queryObjJson.getAsJsonArray("Polygons");
+		JsonArray resultPolygonsJson = resultObjJson.getAsJsonArray("Polygons");
+
+		for(int i = 0; i<queryPolygonsJson.size(); ++i)
+		{
+			JsonObject qpoly = queryPolygonsJson.get(i).getAsJsonObject();
+			Polygon polygon =  transformJsonToPolygon(qpoly);
+			queryPolygons.add(polygon);
+		}
+
+		for(int i = 0; i<resultPolygonsJson.size(); ++i)
+		{
+			JsonObject qpoly = queryPolygonsJson.get(i).getAsJsonObject();
+			Polygon polygon =  transformJsonToPolygon(qpoly);
+			resultPolygons.add(polygon);
+		}
+
+		double similarity = similarity(queryPolygons, resultPolygons);
 	}
 
-	private static Polygon transformJsonToPolygon(String polyJson){
+	private static Polygon transformJsonToPolygon(JsonObject polyJson){
 		Polygon polygon = new Polygon();
-
 
 		return polygon;
 	}
 
 	private static double similarity(List<Polygon> queryPolygons, List<Polygon> resultPolygons){
 
+		queryPolygons.get(1).getRegions();
 
 		return 0.0;
+	}
+
+	private static boolean PolyEqual(Polygon qp, Polygon rp){
 	}
 
 	//TODO: check "gesture" similarity concept
