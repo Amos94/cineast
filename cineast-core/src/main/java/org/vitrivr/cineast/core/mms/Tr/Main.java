@@ -475,7 +475,7 @@ public class Main {
 			resultPolygons.add(polygon);
 		}
 
-		double similarity = similarity(queryPolygons, resultPolygons);
+		double similarity = calculateJaccardIndex(queryPolygons, resultPolygons);
 	}
 
 	private static Polygon transformJsonToPolygon(JsonObject polyJson){
@@ -500,6 +500,27 @@ public class Main {
 			maxSize = resultPolygons.size();
 
 		return count/maxSize;
+	}
+
+	private static double calculateJaccardIndex(List<Polygon> queryPolygons, List<Polygon> resultPolygons){
+		double jaccardIndex = 0.0;
+
+		HashSet<Polygon> union = new HashSet<>();
+		union.addAll(queryPolygons);
+		union.addAll(resultPolygons);
+
+		HashSet<Polygon> intersection = new HashSet<>();
+		for(int i=0; i<queryPolygons.size(); ++i){
+			for(int j=0; j<resultPolygons.size(); ++j){
+				if(PolyEqual(queryPolygons.get(i),resultPolygons.get(j)))
+					intersection.add(queryPolygons.get(i));
+			}
+		}
+
+		jaccardIndex = intersection.size() / union.size();
+
+		return jaccardIndex;
+
 	}
 
 	private static boolean PolyEqual(Polygon qp, Polygon rp){
