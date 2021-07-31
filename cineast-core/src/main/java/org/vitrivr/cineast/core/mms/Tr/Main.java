@@ -449,7 +449,7 @@ public class Main {
 				Iterator<CottontailGrpc.QueryResponseMessage> results = dbHelper.executeSimpleSelect("PVJ", "PVJ");
 				results.forEachRemaining(r -> r.getTuplesList().forEach(t -> {
 					try {
-						performEvaluationWithJSON(volume_json.getAsString(), t.getData(1).getStringData());
+						performEvaluationWithJSON(volume_json.getAsString(), t.getData(2).getStringData(), fileName, t.getData(1).getStringData());
 					} catch (Exception e) {
 						e.printStackTrace();
 					}
@@ -476,7 +476,7 @@ public class Main {
 		}
 	}
 
-	private static void performEvaluationWithJSON(String queryJson, String resultJson){
+	private static void performEvaluationWithJSON(String queryJson, String resultJson, String queryFileName, String resultFileName){
 		List<Polygon> queryPolygons = new ArrayList<Polygon>();
 		List<Polygon> resultPolygons = new ArrayList<Polygon>();
 
