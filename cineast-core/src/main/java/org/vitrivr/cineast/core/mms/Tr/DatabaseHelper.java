@@ -344,4 +344,26 @@ public class DatabaseHelper {
 		return results;
 	}
 
+	public static Iterator<CottontailGrpc.QueryResponseMessage> executeSimpleSelect(String entityName, String schemaName) {
+		/* Prepare  query. */
+		final CottontailGrpc.QueryMessage query = CottontailGrpc.QueryMessage.newBuilder().setQuery(
+				CottontailGrpc.Query.newBuilder().setFrom(CottontailGrpc.From.newBuilder().setScan(
+						CottontailGrpc.Scan.newBuilder().setEntity(CottontailGrpc.EntityName.newBuilder().setName(entityName).setSchema(CottontailGrpc.SchemaName.newBuilder().setName(schemaName))))
+				)
+						.setProjection(CottontailGrpc.Projection.newBuilder().addColumns(
+								CottontailGrpc.Projection.ProjectionElement.newBuilder().setColumn(CottontailGrpc.ColumnName.newBuilder().setName("*") /* Star projection. */
+								)))
+						//.setLimit(3) /* Limit to top 3 entries. */
+		).build();
+
+		/* Execute query. */
+		final Iterator<CottontailGrpc.QueryResponseMessage> results = DQL_SERVICE.query(query);
+
+		/* Print results. */
+		System.out.println("Results of query for entity '" + entityName + "':");
+		results.forEachRemaining(r -> r.getTuplesList().forEach(t -> System.out.println(t.toString())));
+
+		return results;
+	}
+
 }

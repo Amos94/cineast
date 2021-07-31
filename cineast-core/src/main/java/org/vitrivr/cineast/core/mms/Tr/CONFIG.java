@@ -13,6 +13,8 @@ public class CONFIG {
 	public static boolean DB_INSERT = true;
 	public static boolean DO_POLY_OPERATIONS = false; //in order to know how to serialize the data
 	public static boolean SERIALIZE_TO_FLOAT_VEC = false;
+	public static boolean KNN = false;
+	public static boolean JSON = true;
 
 	public static int EVALUATION_MAXIMUM_STACK_FRAMES = 100;
 

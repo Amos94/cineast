@@ -387,7 +387,7 @@ public class Main {
 				 */
 
 				//perform KNN on vectors
-				if(CONFIG.PERFORM_EVALUATION) {
+				if(CONFIG.PERFORM_EVALUATION && CONFIG.KNN) {
 					final CottontailGrpc.FloatVector.Builder bb_vol_vector = CottontailGrpc.FloatVector.newBuilder();
 					bb_vol_vector.addAllVector(rect_features);
 					final CottontailGrpc.FloatVector.Builder poly_vol_vector = CottontailGrpc.FloatVector.newBuilder();
@@ -441,6 +441,23 @@ public class Main {
 			volume_json.add("Polygons", polygons);
 			volume_json.add("LastObject", lastObject);
 
+			if(CONFIG.PERFORM_EVALUATION && CONFIG.JSON) {
+				//JSON VOL
+				File fbb = new File("C:\\DEV\\cineast\\cineast-core\\src\\main\\java\\org\\vitrivr\\cineast\\core\\mms\\Data\\evaluation\\" + fileName + "-PVJ.json");
+				fbb.createNewFile();
+				Files.write(fbb.toPath(), ("[\n").getBytes(), StandardOpenOption.APPEND);
+				Iterator<CottontailGrpc.QueryResponseMessage> results = dbHelper.executeSimpleSelect("PVJ", "PVJ");
+				results.forEachRemaining(r -> r.getTuplesList().forEach(t -> {
+					try {
+						performEvaluationWithJSON(volume_json.getAsString(), t.getData(1).getStringData());
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
+				}));
+				Files.write(fbb.toPath(), ("{ \"Query\": \"endQ\",\n" + "\"Result\": \"endR\"}\n]").getBytes(), StandardOpenOption.APPEND);
+				//END JSON VOL
+			}
+
 			//System.out.println(volume_json.toString());
 		}
 		System.out.println("============================ END ============================");
@@ -449,9 +466,13 @@ public class Main {
 	private static void writeJSON(String fileName, String data, String mode) throws IOException {
 		if (mode == "BB") {
 			Files.write(Paths.get("C:\\DEV\\cineast\\cineast-core\\src\\main\\java\\org\\vitrivr\\cineast\\core\\mms\\Data\\evaluation\\" + fileName + "-BB.json"), ("{ \"Query\": \"" + fileName + "\",\n" + "\"Result\": \"" + data + "\"},").getBytes(), StandardOpenOption.APPEND);
-		} else {
+		} else if(mode == "PV"){
 
 			Files.write(Paths.get("C:\\DEV\\cineast\\cineast-core\\src\\main\\java\\org\\vitrivr\\cineast\\core\\mms\\Data\\evaluation\\" + fileName + "-PV.json"), ("{ \"Query\": \"" + fileName + "\",\n" + "\"Result\": \"" + data + "\"},").getBytes(), StandardOpenOption.APPEND);
+		}
+		else{
+			Files.write(Paths.get("C:\\DEV\\cineast\\cineast-core\\src\\main\\java\\org\\vitrivr\\cineast\\core\\mms\\Data\\evaluation\\" + fileName + "-PVJ.json"), ("{ \"Query\": \"" + fileName + "\",\n" + "\"Result\": \"" + data + "\"},").getBytes(), StandardOpenOption.APPEND);
+
 		}
 	}
 
