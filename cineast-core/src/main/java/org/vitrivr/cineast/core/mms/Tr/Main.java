@@ -80,6 +80,10 @@ public class Main {
 	private boolean insertedLastBB = false;
 	private static DatabaseHelper dbHelper;
 
+	private static HashMap<List<Polygon>, Double> evalMap = new HashMap<List<Polygon>, Double>();
+	private static List<String> resultsJson = new ArrayList<>();
+
+
 	public static void main(String[] args) throws InterruptedException, IOException {
 		dbHelper = new DatabaseHelper();
 		if (args.length>0){
@@ -463,24 +467,33 @@ public class Main {
 
 		for(int i = 0; i<queryPolygonsJson.size(); ++i)
 		{
-			JsonObject qpoly = queryPolygonsJson.get(i).getAsJsonObject();
+			JsonArray qpoly = queryPolygonsJson.get(i).getAsJsonArray();
 			Polygon polygon =  transformJsonToPolygon(qpoly);
 			queryPolygons.add(polygon);
 		}
 
 		for(int i = 0; i<resultPolygonsJson.size(); ++i)
 		{
-			JsonObject qpoly = queryPolygonsJson.get(i).getAsJsonObject();
+			JsonArray qpoly = queryPolygonsJson.get(i).getAsJsonArray();
 			Polygon polygon =  transformJsonToPolygon(qpoly);
 			resultPolygons.add(polygon);
 		}
 
 		double similarity = calculateJaccardIndex(queryPolygons, resultPolygons);
+
+		evalMap.put(resultPolygons, similarity);
 	}
 
-	private static Polygon transformJsonToPolygon(JsonObject polyJson){
+	private static Polygon transformJsonToPolygon(JsonArray polyJson){
 		Polygon polygon = new Polygon();
-
+		List<List<double[]>> regions = new ArrayList<>();
+		List<double[]> points = new ArrayList<>();
+		for(int i= 0; i<polyJson.size(); ++i){
+			JsonObject point = polyJson.get(i).getAsJsonObject();
+			points.add(new double[]{(double) point.get("x").getAsFloat(), (double) point.get("y").getAsFloat()});
+			regions.add(points);
+		}
+		polygon.setRegions(regions);
 		return polygon;
 	}
 
