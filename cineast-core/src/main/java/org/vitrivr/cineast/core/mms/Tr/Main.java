@@ -80,8 +80,8 @@ public class Main {
 	private boolean insertedLastBB = false;
 	private static DatabaseHelper dbHelper;
 
-	private static HashMap<List<Polygon>, Double> evalMap = new HashMap<List<Polygon>, Double>();
-	private static List<String> resultsJson = new ArrayList<>();
+	private static HashMap<List<Polygon>, Double> evalMap;
+	private static HashMap<String, String> resultsJson;
 
 
 	public static void main(String[] args) throws InterruptedException, IOException {
@@ -179,6 +179,12 @@ public class Main {
 						temp.add(files.get(fidx));
 			}
 			files = temp;
+
+
+			if(CONFIG.JSON){
+				resultsJson = new HashMap<>();
+				fetchSelectData();
+			}
 		}
 
 		for(int fidx=0; fidx<files.size(); ++fidx) {
@@ -197,9 +203,11 @@ public class Main {
 				rect_volume = new Vector<Float>();
 				poly_volume = new Vector<Float>();
 			}
+
 			volume_json = new JsonObject();
 			polygons = new JsonArray();
 			insertedFirstBB = false;
+			evalMap = new HashMap<>();
 
 			Mat frame = new Mat();
 			Mat outbox = new Mat();
@@ -446,14 +454,13 @@ public class Main {
 				File fbb = new File("C:\\DEV\\cineast\\cineast-core\\src\\main\\java\\org\\vitrivr\\cineast\\core\\mms\\Data\\evaluation\\" + fileName + "-PVJ.json");
 				fbb.createNewFile();
 				Files.write(fbb.toPath(), ("[\n").getBytes(), StandardOpenOption.APPEND);
-				Iterator<CottontailGrpc.QueryResponseMessage> results = dbHelper.executeSimpleSelect("PVJ", "PVJ");
-				results.forEachRemaining(r -> r.getTuplesList().forEach(t -> {
-					try {
-						performEvaluationWithJSON(volume_json.getAsString(), t.getData(2).getStringData(), fileName, t.getData(1).getStringData());
-					} catch (Exception e) {
-						e.printStackTrace();
-					}
-				}));
+
+				for (Map.Entry<String, String> entry : resultsJson.entrySet()) {
+					String key = entry.getKey();
+					String value = entry.getValue();
+					performEvaluationWithJSON(volume_json.getAsString(), value, fileName, key);
+				}
+
 				Files.write(fbb.toPath(), ("{ \"Query\": \"endQ\",\n" + "\"Result\": \"endR\"}\n]").getBytes(), StandardOpenOption.APPEND);
 				//END JSON VOL
 			}
@@ -461,6 +468,17 @@ public class Main {
 			//System.out.println(volume_json.toString());
 		}
 		System.out.println("============================ END ============================");
+	}
+
+	private static void fetchSelectData() {
+		Iterator<CottontailGrpc.QueryResponseMessage> results = dbHelper.executeSimpleSelect("PVJ", "PVJ");
+		results.forEachRemaining(r -> r.getTuplesList().forEach(t -> {
+			try {
+				resultsJson.put(t.getData(1).getStringData(), t.getData(2).getStringData());
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}));
 	}
 
 	private static void writeJSON(String fileName, String data, String mode) throws IOException {
@@ -503,6 +521,8 @@ public class Main {
 		double similarity = calculateJaccardIndex(queryPolygons, resultPolygons);
 
 		evalMap.put(resultPolygons, similarity);
+
+		//TODO: write to file
 	}
 
 	private static Polygon transformJsonToPolygon(JsonArray polyJson){
