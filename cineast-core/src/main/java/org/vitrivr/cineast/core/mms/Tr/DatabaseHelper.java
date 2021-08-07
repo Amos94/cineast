@@ -14,7 +14,7 @@ public class DatabaseHelper {
     /**
      * Cottontail DB gRPC channel; adjust Cottontail DB host and port according to your needs.
      */
-    private static final ManagedChannel CHANNEL = ManagedChannelBuilder.forAddress("127.0.0.1", 1865).usePlaintext().build();
+    private static final ManagedChannel CHANNEL = ManagedChannelBuilder.forAddress("127.0.0.1", 1865).usePlaintext().maxInboundMessageSize(9999999).build();
 
     /**
      * Cottontail DB Stub for DDL operations (e.g. create a new Schema or Entity).
@@ -165,7 +165,7 @@ public class DatabaseHelper {
 		System.out.println("Entity '" + "PVJ" + "." + "PVJ" + "' created successfully.");
 	}
 
-	public static void insertJSONToDb(String guid, String fname, String jObject){
+	public static boolean insertJSONToDb(String guid, String fname, String jObject){
 		//initializeBBSchema();
 		//initializeBBEntitites();
 
@@ -190,10 +190,13 @@ public class DatabaseHelper {
 				.addElements(CottontailGrpc.InsertMessage.InsertElement.newBuilder().setColumn(CottontailGrpc.ColumnName.newBuilder().setName("features")).setValue(jsonObject).build())
 				.build();
 
-		/* Send INSERT message. */
-		DML_SERVICE.insert(insertMessage);
-
-		TXN_SERVICE.commit(txId);
+		if(insertMessage.getSerializedSize() < 4194304) {
+			/* Send INSERT message. */
+			DML_SERVICE.insert(insertMessage);
+			TXN_SERVICE.commit(txId);
+			return true;
+		}
+		return false;
 	}
 
 
@@ -360,8 +363,8 @@ public class DatabaseHelper {
 		final Iterator<CottontailGrpc.QueryResponseMessage> results = DQL_SERVICE.query(query);
 
 		/* Print results. */
-		System.out.println("Results of query for entity '" + entityName + "':");
-		results.forEachRemaining(r -> r.getTuplesList().forEach(t -> System.out.println(t.toString())));
+		//System.out.println("Results of query for entity '" + entityName + "':");
+		//results.forEachRemaining(r -> r.getTuplesList().forEach(t -> System.out.println(t.toString())));
 
 		return results;
 	}

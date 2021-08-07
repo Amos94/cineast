@@ -5,6 +5,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import org.apache.commons.lang3.tuple.Triple;
 import org.opencv.core.Point;
 import org.opencv.core.*;
 import org.opencv.imgcodecs.Imgcodecs;
@@ -50,7 +51,7 @@ public class Main {
 	//TODO serialize data in JSON
 
 	/** Cottontail DB gRPC channel; adjust Cottontail DB host and port according to your needs. */
-	private static final ManagedChannel CHANNEL  = ManagedChannelBuilder.forAddress("127.0.0.1", 1865).usePlaintext().build();
+	private static final ManagedChannel CHANNEL  = ManagedChannelBuilder.forAddress("127.0.0.1", 1865).usePlaintext().maxInboundMessageSize(9999999).build();
 
 	/** Cottontail DB Stub for DDL operations (e.g. create a new Schema or Entity). */
 	private static final DDLGrpc.DDLBlockingStub DDL_SERVICE = DDLGrpc.newBlockingStub(CHANNEL);
@@ -80,7 +81,7 @@ public class Main {
 	private boolean insertedLastBB = false;
 	private static DatabaseHelper dbHelper;
 
-	private static HashMap<List<Polygon>, Double> evalMap;
+	private static HashMap<Triple<List<Polygon>, String, String>, Double> evalMap;
 	private static HashMap<String, String> resultsJson;
 
 
@@ -181,7 +182,7 @@ public class Main {
 			files = temp;
 
 
-			if(CONFIG.JSON){
+			if(CONFIG.JSON && CONFIG.PERFORM_EVALUATION){
 				resultsJson = new HashMap<>();
 				fetchSelectData();
 			}
@@ -431,7 +432,13 @@ public class Main {
 				}
 			}
 
-			if(!CONFIG.SERIALIZE_TO_FLOAT_VEC){
+
+
+			camera.release();
+			volume_json.add("Polygons", polygons);
+			volume_json.add("LastObject", lastObject);
+
+			if(CONFIG.JSON && CONFIG.DB_INSERT){
 				/**
 				 * JSON volume insert
 				 */
@@ -441,13 +448,20 @@ public class Main {
 				}
 
 				String id = UUID.randomUUID().toString();
-				if (CONFIG.DB_INSERT)
-					dbHelper.insertJSONToDb(id, fileName, volume_json.toString());
-			}
+				boolean isSuccess = dbHelper.insertJSONToDb(id, fileName, volume_json.toString());
 
-			camera.release();
-			volume_json.add("Polygons", polygons);
-			volume_json.add("LastObject", lastObject);
+				if(!isSuccess) {
+					List<String> ff = Files.readAllLines(Paths.get("C:/DEV/cineast/cineast-core/src/main/java/org/vitrivr/cineast/core/mms/Data/status.txt"));
+					if(ff.get(ff.size()-1) == "")
+						ff.remove(ff.size()-1);
+					ff.remove(ff.size()-1);
+					Files.delete(Paths.get("C:/DEV/cineast/cineast-core/src/main/java/org/vitrivr/cineast/core/mms/Data/status.txt"));
+					Files.createFile(Paths.get("C:/DEV/cineast/cineast-core/src/main/java/org/vitrivr/cineast/core/mms/Data/status.txt"));
+
+					for(int fi = 0; fi<ff.size(); ++fi)
+						Files.write(Paths.get("C:/DEV/cineast/cineast-core/src/main/java/org/vitrivr/cineast/core/mms/Data/status.txt"), ("processing " + ff.get(fi) + "\n").getBytes(), StandardOpenOption.APPEND);
+				}
+			}
 
 			if(CONFIG.PERFORM_EVALUATION && CONFIG.JSON) {
 				//JSON VOL
@@ -458,9 +472,13 @@ public class Main {
 				for (Map.Entry<String, String> entry : resultsJson.entrySet()) {
 					String key = entry.getKey();
 					String value = entry.getValue();
-					performEvaluationWithJSON(volume_json.getAsString(), value, fileName, key);
+					performEvaluationWithJSON(volume_json.toString(), value, fileName, key);
 				}
+				ArrayList<String> top10 = fetchTopXScores(evalMap, 10);
 
+				for(String entry : top10) {
+					Files.write(fbb.toPath(), ("{ \"Query\":" + fileName + ",\n" + "\"Result\": " + entry + "}\n]").getBytes(), StandardOpenOption.APPEND);
+				}
 				Files.write(fbb.toPath(), ("{ \"Query\": \"endQ\",\n" + "\"Result\": \"endR\"}\n]").getBytes(), StandardOpenOption.APPEND);
 				//END JSON VOL
 			}
@@ -518,11 +536,53 @@ public class Main {
 			resultPolygons.add(polygon);
 		}
 
-		double similarity = calculateJaccardIndex(queryPolygons, resultPolygons);
+		double similarity = calculateJaccardIndex(queryPolygons, resultPolygons); //TODO: add also the filename
 
-		evalMap.put(resultPolygons, similarity);
+		evalMap.put(new Triple<List<Polygon>, String, String>() {
+			@Override
+			public List<Polygon> getLeft() {
+				return resultPolygons;
+			}
 
-		//TODO: write to file
+			@Override
+			public String getMiddle() {
+				return queryFileName;
+			}
+
+			@Override
+			public String getRight() {
+				return resultFileName;
+			}
+		}, similarity);
+	}
+
+	private static ArrayList<String> fetchTopXScores(HashMap<Triple<List<Polygon>, String, String>, Double> evalMap, int x) {
+		ArrayList<String> results = new ArrayList<>();
+
+		HashMap<Triple<List<Polygon>, String, String>, Double> resultMap = new HashMap<>();
+		evalMap.entrySet()
+				.stream()
+				.sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
+				.forEachOrdered(v -> resultMap.put(v.getKey(), v.getValue()));
+
+		ArrayList<Double> topXScores = new ArrayList<Double>();
+
+		int curidx = 0;
+		for (Map.Entry<Triple<List<Polygon>, String, String>, Double> entry : resultMap.entrySet()) {
+			if(curidx == x-1)
+				break;
+			if(!topXScores.contains(entry.getValue())){
+				topXScores.add(entry.getValue());
+				++curidx;
+			}
+		}
+
+		for(Map.Entry<Triple<List<Polygon>, String, String>, Double> entry : resultMap.entrySet()){
+			if(topXScores.contains(entry.getValue()))
+				results.add(entry.getKey().getRight());
+		}
+
+		return results;
 	}
 
 	private static Polygon transformJsonToPolygon(JsonArray polyJson){

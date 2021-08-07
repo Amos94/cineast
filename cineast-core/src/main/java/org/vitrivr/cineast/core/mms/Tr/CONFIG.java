@@ -7,10 +7,10 @@ import java.awt.*;
 public class CONFIG {
 
 	public static boolean IS_DEVELOPMENT = false;
-	public static boolean PERFORM_EVALUATION = false;
+	public static boolean PERFORM_EVALUATION = true;
 	public static boolean DISPLAY_FRAMES = false;
-	public static boolean INITIALIZE_SCHEMA = true;
-	public static boolean DB_INSERT = true;
+	public static boolean INITIALIZE_SCHEMA = false;
+	public static boolean DB_INSERT = false;
 	public static boolean DO_POLY_OPERATIONS = false; //in order to know how to serialize the data
 	public static boolean SERIALIZE_TO_FLOAT_VEC = false;
 	public static boolean KNN = false;
