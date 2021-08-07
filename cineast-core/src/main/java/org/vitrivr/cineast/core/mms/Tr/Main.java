@@ -531,7 +531,7 @@ public class Main {
 
 		for(int i = 0; i<resultPolygonsJson.size(); ++i)
 		{
-			JsonArray qpoly = queryPolygonsJson.get(i).getAsJsonArray();
+			JsonArray qpoly = resultPolygonsJson.get(i).getAsJsonArray();
 			Polygon polygon =  transformJsonToPolygon(qpoly);
 			resultPolygons.add(polygon);
 		}
@@ -591,7 +591,7 @@ public class Main {
 		List<double[]> points = new ArrayList<>();
 		for(int i= 0; i<polyJson.size(); ++i){
 			JsonObject point = polyJson.get(i).getAsJsonObject();
-			points.add(new double[]{(double) point.get("x").getAsFloat(), (double) point.get("y").getAsFloat()});
+			points.add(new double[]{(double) point.get("X").getAsFloat(), (double) point.get("Y").getAsFloat()});
 			regions.add(points);
 		}
 		polygon.setRegions(regions);
