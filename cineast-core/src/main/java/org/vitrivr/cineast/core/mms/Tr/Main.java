@@ -571,7 +571,7 @@ public class Main {
 		for (Map.Entry<Triple<List<Polygon>, String, String>, Double> entry : resultMap.entrySet()) {
 			if(curidx == x-1)
 				break;
-			if(!topXScores.contains(entry.getValue())){
+			if(!topXScores.contains(entry.getValue()) && entry.getValue() != 0){
 				topXScores.add(entry.getValue());
 				++curidx;
 			}
