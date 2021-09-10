@@ -26,7 +26,7 @@ public class OpenCVPreProcessing {
 		LOGGER.setLevel(Level.SEVERE);
 		OcrPreProcessing.LOGGER.setLevel(Level.SEVERE);
 
-		String arg = "C:\\DEV\\cineast\\cineast-core\\src\\main\\java\\org\\vitrivr\\cineast\\core\\mms\\Data\\example.png";
+		String arg = "C:\\DEV\\cineast\\cineast-core\\src\\main\\java\\org\\vitrivr\\cineast\\core\\mms\\Data\\flyer.png";
 		File f = new File(arg);
 		if (!f.exists() || !f.isFile()) {
 			return;

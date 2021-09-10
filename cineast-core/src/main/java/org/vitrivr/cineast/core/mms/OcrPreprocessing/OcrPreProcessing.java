@@ -46,8 +46,8 @@ public class OcrPreProcessing {
 	public static boolean DEBUG = Boolean.parseBoolean(System.getProperty("DEBUG", "false"));
 
 	/**
-	 * Returns true if the image is probably blurry when variance of laplacian and
-	 * modified laplacian are above the threshold.
+	 * Returns true if the image is proably blurry when variance of laplacian and
+	 * 	 * modified laplacian are above the threshold.b
 	 * 
 	 * @param source
 	 *            image to calculate blurriness

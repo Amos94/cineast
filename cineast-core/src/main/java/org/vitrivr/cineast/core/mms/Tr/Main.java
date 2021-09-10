@@ -479,7 +479,10 @@ public class Main {
 				for(String entry : top10) {
 					Files.write(fbb.toPath(), ("{ \"Query\":" + fileName + ",\n" + "\"Result\": " + entry + "}\n]").getBytes(), StandardOpenOption.APPEND);
 				}
+
 				Files.write(fbb.toPath(), ("{ \"Query\": \"endQ\",\n" + "\"Result\": \"endR\"}\n]").getBytes(), StandardOpenOption.APPEND);
+				if(top10.size() == 0)
+					Files.delete(Paths.get("C:\\DEV\\cineast\\cineast-core\\src\\main\\java\\org\\vitrivr\\cineast\\core\\mms\\Data\\evaluation\\" + fileName + "-PVJ.json"));
 				//END JSON VOL
 			}
 
@@ -641,10 +644,18 @@ public class Main {
 		List<List<double[]>> qpRegions = qp.getRegions();
 		List<List<double[]>> rpRegions = rp.getRegions();
 
-		return equalLists(qpRegions, rpRegions);
+		Set<List<double[]>> qpset = new HashSet<>(qpRegions);
+		qpRegions.clear();
+		qpRegions.addAll(qpset);
+
+		Set<List<double[]>> rpset = new HashSet<>(rpRegions);
+		rpRegions.clear();
+		rpRegions.addAll(rpset);
+
+		return equalRegions(qpRegions, rpRegions);
 	}
 
-	public static boolean equalLists(List<List<double[]>> one, List<List<double[]>> two){
+	public static boolean equalRegions(List<List<double[]>> one, List<List<double[]>> two){
 		if (one == null && two == null){
 			return true;
 		}
@@ -655,7 +666,46 @@ public class Main {
 			return false;
 		}
 
-		return one.containsAll(two) && two.containsAll(one);
+		for(List<double[]> entryOne : one)
+			for(List<double[]> entryTwo : two)
+				if(EqualLists(entryOne, entryTwo))
+					return true;
+		return false;
+	}
+
+	public static boolean EqualLists(List<double[]> one, List<double[]> two){
+		if (one == null && two == null){
+			return true;
+		}
+
+		if((one == null && two != null)
+				|| one != null && two == null
+				|| one.size() != two.size()){
+			return false;
+		}
+
+		boolean left = checkContents(one, two); boolean right = checkContents(two, one);
+		return left && right;
+	}
+
+	public static boolean checkContents(List<double[]> one, List<double[]> two){
+		List<double[]> cloneOne = new ArrayList<>();
+		List<double[]> cloneTwo = new ArrayList<>();
+
+		cloneOne.addAll(one);
+		cloneTwo.addAll(two);
+
+		for(double[] oneEntry : one)
+			for(double[] twoEntry : two)
+				if(EqualArrays(oneEntry, twoEntry))
+					cloneOne.remove(oneEntry);
+
+		return cloneOne.size() == 0;
+	}
+
+	public static boolean EqualArrays(double[] one, double[] two){
+		boolean result = (one[0] == two[0] && one[1] == two[1]);
+		return result;
 	}
 
 	//TODO: check "gesture" similarity concept
