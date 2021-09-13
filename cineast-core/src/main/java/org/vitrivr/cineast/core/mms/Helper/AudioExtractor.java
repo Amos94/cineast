@@ -32,6 +32,6 @@ public class AudioExtractor {
     public static void main(String args[])
     {
 
-        convertToMP3("C:\\DEV\\cineast\\cineast-core\\src\\main\\java\\org\\vitrivr\\cineast\\core\\data\\audioext.mp4", "C:\\DEV\\cineast\\cineast-core\\src\\main\\java\\org\\vitrivr\\cineast\\core\\data\\audioext-output.mp3");
+        convertToMP3("C:\\DEV\\cineast\\cineast-core\\src\\main\\java\\org\\vitrivr\\cineast\\core\\mms\\Data\\audioext.mp4", "C:\\DEV\\cineast\\cineast-core\\src\\main\\java\\org\\vitrivr\\cineast\\core\\mms\\Data\\audioext-output.mp3");
     }
 }

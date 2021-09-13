@@ -8,12 +8,12 @@ public class CONFIG {
 
 	public static boolean IS_DEVELOPMENT = false;
 	public static boolean PERFORM_EVALUATION = true;
+	public static boolean PERFORM_EVALUATION_WITH_DB = false;
 	public static boolean DISPLAY_FRAMES = false;
 	public static boolean INITIALIZE_SCHEMA = false;
+	public static boolean INCLUDE_TEXT = false;
 	public static boolean DB_INSERT = false;
 	public static boolean DO_POLY_OPERATIONS = false; //in order to know how to serialize the data
-	public static boolean SERIALIZE_TO_FLOAT_VEC = false;
-	public static boolean KNN = false;
 	public static boolean JSON = true;
 
 	public static int EVALUATION_MAXIMUM_STACK_FRAMES = 100;

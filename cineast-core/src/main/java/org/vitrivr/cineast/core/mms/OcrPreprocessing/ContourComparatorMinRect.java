@@ -6,7 +6,6 @@ import org.opencv.core.RotatedRect;
 import org.opencv.imgproc.Imgproc;
 
 import java.util.Comparator;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -18,7 +17,6 @@ import java.util.logging.Logger;
  */
 public class ContourComparatorMinRect implements Comparator<MatOfPoint> {
 
-	private static final Logger LOGGER = Logger.getLogger(ContourComparatorMinRect.class.getName());
 
 	@Override
 	public int compare(MatOfPoint lhs, MatOfPoint rhs) {
@@ -41,7 +39,6 @@ public class ContourComparatorMinRect implements Comparator<MatOfPoint> {
 			RotatedRect area = Imgproc.minAreaRect(mop2f);
 			result = area.size.width * area.size.height;
 		} catch (Exception exc) {
-			LOGGER.log(Level.SEVERE, "calculateArea failed with \"{0}\"", exc.getMessage());
 		}
 		return result;
 	}
