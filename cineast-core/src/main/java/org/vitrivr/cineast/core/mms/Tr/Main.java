@@ -1,6 +1,7 @@
 package org.vitrivr.cineast.core.mms.Tr;
 
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import io.grpc.ManagedChannel;
@@ -15,6 +16,7 @@ import org.opencv.video.BackgroundSubtractorMOG2;
 import org.opencv.video.Video;
 import org.opencv.videoio.VideoCapture;
 import org.vitrivr.cineast.core.mms.Algorithms.Polygons.Algos.Epsilon;
+import org.vitrivr.cineast.core.mms.Algorithms.Polygons.Algos.PolyBool;
 import org.vitrivr.cineast.core.mms.Algorithms.Polygons.Algos.models.Polygon;
 import org.vitrivr.cineast.core.mms.Algorithms.Polygons.RamerDouglasPeucker;
 import org.vitrivr.cineast.core.mms.Helper.ConvexHull;
@@ -28,7 +30,10 @@ import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
-import java.io.*;
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -39,6 +44,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.opencv.imgcodecs.Imgcodecs.imwrite;
+import static org.vitrivr.cineast.core.mms.Algorithms.Polygons.Algos.helpers.PolyBoolHelper.epsilon;
 import static org.vitrivr.cineast.core.mms.Algorithms.Polygons.Algos.helpers.PolyBoolHelper.point;
 import static org.vitrivr.cineast.core.mms.Tr.CONFIG.*;
 
@@ -76,7 +82,7 @@ public class Main {
 	private static JsonArray volumeElements;
 	private static DatabaseHelper dbHelper;
 
-	private static HashMap<Triple<List<Polygon>, String, String>, Double> evalMap;
+	private static HashMap<Triple<List<Triple<Polygon, Polygon, Double>>, String, String>, Double> evalMap;
 	private static HashMap<String, String> resultsJson;
 
 
@@ -408,6 +414,29 @@ public class Main {
 				//END JSON VOL
 			}
 
+			if(CONFIG.PERFORM_EVALUATION && CONFIG.JSON){
+				//JSON VOL
+				File fbb = new File("C:\\DEV\\cineast\\cineast-core\\src\\main\\java\\org\\vitrivr\\cineast\\core\\mms\\Data\\evaluation\\" + fileName + "-PVJ.json");
+				fbb.createNewFile();
+				Files.write(fbb.toPath(), ("[\n").getBytes(), StandardOpenOption.APPEND);
+
+				for (Map.Entry<String, String> entry : resultsJson.entrySet()) {
+					String key = entry.getKey();
+					String value = entry.getValue();
+					performEvaluationWithJSON(volume_json.toString(), value, fileName, key);
+				}
+				ArrayList<String> top10 = fetchTopXScores(evalMap, 10);
+
+				for(String entry : top10) {
+					Files.write(fbb.toPath(), ("{ \"Query\":" + fileName + ",\n" + "\"Result\": " + entry + "}\n]").getBytes(), StandardOpenOption.APPEND);
+				}
+
+				Files.write(fbb.toPath(), ("{ \"Query\": \"endQ\",\n" + "\"Result\": \"endR\"}\n]").getBytes(), StandardOpenOption.APPEND);
+				if(top10.size() == 0)
+					Files.delete(Paths.get("C:\\DEV\\cineast\\cineast-core\\src\\main\\java\\org\\vitrivr\\cineast\\core\\mms\\Data\\evaluation\\" + fileName + "-PVJ.json"));
+				//END JSON VOL
+			}
+
 			//System.out.println(volume_json.toString());
 		}
 		System.out.println("============================ END ============================");
@@ -427,7 +456,6 @@ public class Main {
 	private static void fetchDiskData() {
 		Iterator it = FileUtils.iterateFiles(new File("cineast-core/src/main/java/org/vitrivr/cineast/core/mms/Data/results"), new String[]{"json"}, false);
 		while(it.hasNext()){
-			System.out.println(((File) it.next()).getName());
 			String fname = ((File) it.next()).getName().replace(".json", "");
 
 			try {
@@ -439,9 +467,7 @@ public class Main {
 				}
 				resultsJson.put(fname, data.toString());
 				reader.close();
-			} catch (FileNotFoundException e) {
-				System.out.println("An error occurred.");
-				e.printStackTrace();
+			} catch (Exception e) {
 			}
 
 		}
@@ -461,35 +487,75 @@ public class Main {
 	}
 
 	private static void performEvaluationWithJSON(String queryJson, String resultJson, String queryFileName, String resultFileName){
-		List<Polygon> queryPolygons = new ArrayList<Polygon>();
-		List<Polygon> resultPolygons = new ArrayList<Polygon>();
+		List<Triple<Polygon, Polygon, Double>> queryElements = new ArrayList<Triple<Polygon, Polygon, Double>>();
+		List<Triple<Polygon, Polygon, Double>> resultElements = new ArrayList<Triple<Polygon, Polygon, Double>>();
 
 		JsonObject queryObjJson = new JsonParser().parse(queryJson).getAsJsonObject();
 		JsonObject resultObjJson = new JsonParser().parse(resultJson).getAsJsonObject();
 
-		JsonArray queryPolygonsJson = queryObjJson.getAsJsonArray("Elements");
-		JsonArray resultPolygonsJson = resultObjJson.getAsJsonArray("Elements");
+		JsonArray queryElementsJson = queryObjJson.getAsJsonArray("Elements");
+		JsonArray resultElementsJson = resultObjJson.getAsJsonArray("Elements");
 
-		for(int i = 0; i<queryPolygonsJson.size(); ++i)
+		for(int i = 0; i<queryElementsJson.size(); ++i)
 		{
-			JsonArray qpoly = queryPolygonsJson.get(i).getAsJsonArray();
+			JsonObject qo = queryElementsJson.get(i).getAsJsonObject();
+			JsonArray qpoly = qo.getAsJsonArray("Polygon");
+			JsonArray qRect = qo.getAsJsonArray("Rect");
+			JsonElement qAreaJson = qo.get("Area");
+			double qArea = (double) qAreaJson.getAsFloat();
 			Polygon polygon =  transformJsonToPolygon(qpoly);
-			queryPolygons.add(polygon);
+			Polygon rect =  transformJsonToPolygon(qRect);
+			queryElements.add(new Triple<Polygon, Polygon, Double>() {
+				@Override
+				public Polygon getLeft() {
+					return polygon;
+				}
+
+				@Override
+				public Polygon getMiddle() {
+					return rect;
+				}
+
+				@Override
+				public Double getRight() {
+					return qArea;
+				}
+			});
 		}
 
-		for(int i = 0; i<resultPolygonsJson.size(); ++i)
+		for(int i = 0; i<resultElementsJson.size(); ++i)
 		{
-			JsonArray qpoly = resultPolygonsJson.get(i).getAsJsonArray();
-			Polygon polygon =  transformJsonToPolygon(qpoly);
-			resultPolygons.add(polygon);
+			JsonObject ro = resultElementsJson.get(i).getAsJsonObject();
+			JsonArray rpoly = ro.getAsJsonArray("Polygon");
+			JsonArray rRect = ro.getAsJsonArray("Rect");
+			JsonElement rAreaJson = ro.get("Area");
+			double rArea = (double) rAreaJson.getAsFloat();
+			Polygon polygon =  transformJsonToPolygon(rpoly);
+			Polygon rect =  transformJsonToPolygon(rRect);
+			resultElements.add(new Triple<Polygon, Polygon, Double>() {
+				@Override
+				public Polygon getLeft() {
+					return polygon;
+				}
+
+				@Override
+				public Polygon getMiddle() {
+					return rect;
+				}
+
+				@Override
+				public Double getRight() {
+					return rArea;
+				}
+			});
 		}
 
-		double similarity = calculateJaccardIndex(queryPolygons, resultPolygons); //TODO: add also the filename
+		double similarity = calculateJaccardIndex(queryElements, resultElements); //TODO: add also the filename
 
-		evalMap.put(new Triple<List<Polygon>, String, String>() {
+		evalMap.put(new Triple<List<Triple<Polygon, Polygon, Double>>, String, String>() {
 			@Override
-			public List<Polygon> getLeft() {
-				return resultPolygons;
+			public List<Triple<Polygon, Polygon, Double>> getLeft() {
+				return resultElements;
 			}
 
 			@Override
@@ -504,10 +570,10 @@ public class Main {
 		}, similarity);
 	}
 
-	private static ArrayList<String> fetchTopXScores(HashMap<Triple<List<Polygon>, String, String>, Double> evalMap, int x) {
+	private static ArrayList<String> fetchTopXScores(HashMap<Triple<List<Triple<Polygon, Polygon, Double>>, String, String>, Double> evalMap, int x) {
 		ArrayList<String> results = new ArrayList<>();
 
-		HashMap<Triple<List<Polygon>, String, String>, Double> resultMap = new HashMap<>();
+		HashMap<Triple<List<Triple<Polygon, Polygon, Double>>, String, String>, Double> resultMap = new HashMap<>();
 		evalMap.entrySet()
 				.stream()
 				.sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
@@ -516,7 +582,9 @@ public class Main {
 		ArrayList<Double> topXScores = new ArrayList<Double>();
 
 		int curidx = 0;
-		for (Map.Entry<Triple<List<Polygon>, String, String>, Double> entry : resultMap.entrySet()) {
+		for (Map.Entry<Triple<List<Triple<Polygon, Polygon, Double>>, String, String>, Double> entry : resultMap.entrySet()) {
+			if(entry.getValue() < CONFIG.JACCARDACCEPTANCESCORE)
+				continue;
 			if(curidx == x-1)
 				break;
 			if(!topXScores.contains(entry.getValue()) && entry.getValue() != 0){
@@ -525,9 +593,12 @@ public class Main {
 			}
 		}
 
-		for(Map.Entry<Triple<List<Polygon>, String, String>, Double> entry : resultMap.entrySet()){
-			if(topXScores.contains(entry.getValue()))
+		for(Map.Entry<Triple<List<Triple<Polygon, Polygon, Double>>, String, String>, Double> entry : resultMap.entrySet()){
+			if(entry.getValue() < CONFIG.JACCARDACCEPTANCESCORE)
+				continue;
+			if(topXScores.contains(entry.getValue())) {
 				results.add(entry.getKey().getRight());
+			}
 		}
 
 		return results;
@@ -564,18 +635,22 @@ public class Main {
 		return count/maxSize;
 	}
 
-	private static double calculateJaccardIndex(List<Polygon> queryPolygons, List<Polygon> resultPolygons){
+	private static double calculateJaccardIndex(List<Triple<Polygon, Polygon, Double>> queryPolygons, List<Triple<Polygon, Polygon, Double>> resultPolygons){
 		double jaccardIndex = 0.0;
 
-		HashSet<Polygon> union = new HashSet<>();
+		HashSet<Triple<Polygon, Polygon, Double>> union = new HashSet<>();
 		union.addAll(queryPolygons);
 		union.addAll(resultPolygons);
 
 		HashSet<Polygon> intersection = new HashSet<>();
 		for(int i=0; i<queryPolygons.size(); ++i){
 			for(int j=0; j<resultPolygons.size(); ++j){
-				if(PolyEqual(queryPolygons.get(i),resultPolygons.get(j)))
-					intersection.add(queryPolygons.get(i));
+				//boolean areasNotEqual = queryPolygons.get(i).getRight().equals(resultPolygons.get(i).getRight());
+				boolean bbNotIntersect = !doRectsIntersect(queryPolygons.get(i).getMiddle(),resultPolygons.get(j).getMiddle());
+				if(bbNotIntersect)// || areasNotEqual)
+					continue;
+				if(PolyEqual(queryPolygons.get(i).getLeft(),resultPolygons.get(j).getLeft()))
+					intersection.add(queryPolygons.get(i).getLeft());
 			}
 		}
 
@@ -583,6 +658,15 @@ public class Main {
 
 		return jaccardIndex;
 
+	}
+
+	private static boolean doRectsIntersect(Polygon qr, Polygon rr){
+		Epsilon eps = epsilon();
+		List<List<double[]>> reg = PolyBool.intersect(eps,qr, rr).getRegions();
+
+		if(reg.size() != 0)
+			System.out.println("INTERSECTION FOUND!");
+		return reg.size() != 0;
 	}
 
 	private static boolean PolyEqual(Polygon qp, Polygon rp){

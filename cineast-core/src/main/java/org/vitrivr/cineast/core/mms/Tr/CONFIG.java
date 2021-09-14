@@ -15,6 +15,7 @@ public class CONFIG {
 	public static boolean DB_INSERT = false;
 	public static boolean DO_POLY_OPERATIONS = false; //in order to know how to serialize the data
 	public static boolean JSON = true;
+	public static double JACCARDACCEPTANCESCORE = 0.7;
 
 	public static int EVALUATION_MAXIMUM_STACK_FRAMES = 100;
 
